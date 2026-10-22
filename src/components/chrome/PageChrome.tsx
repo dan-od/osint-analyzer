@@ -9,8 +9,14 @@ export default function PageChrome({ children, header = 'auto' }: { children: Re
   const user = getCurrentUser();
   return (
     <div className="oa-page">
-      <SiteHeader user={user ? { name: user.name, email: user.email } : null} variant={header} />
-      {children}
+      {/* First thing a keyboard user reaches; visible only when focused */}
+      <a href="#main" className="oa-skip">
+        Skip to content
+      </a>
+      <SiteHeader user={user ? { name: user.name, email: user.email, admin: user.role === 'admin' } : null} variant={header} />
+      <main id="main" tabIndex={-1} className="flex flex-auto flex-col outline-none">
+        {children}
+      </main>
       <SiteFooter />
     </div>
   );

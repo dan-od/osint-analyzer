@@ -12,7 +12,7 @@ function Panel({ label, children, className = '' }: { label: string; children: R
 }
 
 export function SideColumn({ children }: { children: ReactNode }) {
-  return <aside className="flex min-w-0 max-w-[360px] flex-[1_1_300px] flex-col gap-4">{children}</aside>;
+  return <aside className="flex min-w-0 max-w-[360px] max-[720px]:max-w-none flex-[1_1_300px] flex-col gap-4">{children}</aside>;
 }
 
 export function RecommendedAction({ items }: { items: string[] }) {

@@ -4,7 +4,10 @@ import { DataColumn, MarkBleed, SOURCE_LINES } from '@/components/decor';
 import { IP_DNSBL_COUNT, SOURCE_COUNT } from '@/lib/source-catalog';
 import { DNSBL_TIMEOUT_SECONDS, SOURCE_TIMEOUT_SECONDS, TYPICAL_CHECK_SECONDS } from '@/lib/bulk-limits';
 
-export const metadata = { title: 'Features · OSINT Analyzer' };
+export const metadata = {
+  title: 'Features · OSINT Analyzer',
+  description: 'What OSINT Analyzer checks for each kind of target, and the public sources behind each verdict.',
+};
 
 const MODULES: { title: string; tag: string; text: string; points: string[]; sources: string }[] = [
   {
@@ -19,7 +22,7 @@ const MODULES: { title: string; tag: string; text: string; points: string[]; sou
     tag: 'DOMAIN',
     text: 'Registration, DNS, reputation and whether it is pretending to be someone else.',
     points: ['Registration date and age', 'DNS records and CDN detection', 'Phishing and malware feeds', 'Google Safe Browsing', 'Domain blocklists (DBL, SURBL, URIBL)', 'Look-alike and suspicious-TLD rules'],
-    sources: 'VirusTotal, URLhaus, ThreatFox, PhishTank, OpenPhish, PhishStats, Spamhaus, SURBL, URIBL, OTX',
+    sources: 'VirusTotal, URLhaus, ThreatFox, PhishTank, OpenPhish, Spamhaus, SURBL, URIBL, OTX',
   },
   {
     title: 'IP reputation',
@@ -144,11 +147,11 @@ export default function FeaturesPage() {
         <div className="oa-sec oa-wrap box-border flex min-h-[360px] flex-wrap items-center justify-between gap-x-12 gap-y-6 py-[72px]">
           <div className="flex max-w-[56ch] flex-col gap-2">
             <h2 className="oa-h2 oa-display text-[34px] leading-[1.05]">Got something suspicious right now?</h2>
-            <p className="m-0 text-muted">No account needed for a single check. Teams can log in for bulk jobs and their own keys.</p>
+            <p className="m-0 text-muted">No account needed for a single check. Anyone can create a free account for IP checks, bulk jobs and their own keys.</p>
           </div>
           <div className="flex flex-wrap gap-[10px]">
             <Link href="/" className="oa-btn-primary h-auto px-[22px] py-[14px]">Check something</Link>
-            <Link href="/login" className="oa-btn-outline px-5 py-[14px]">Log in</Link>
+            <Link href="/signup" className="oa-btn-outline px-5 py-[14px]">Create an account</Link>
           </div>
         </div>
       </section>

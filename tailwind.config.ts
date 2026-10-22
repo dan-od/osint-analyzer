@@ -17,7 +17,10 @@ export default {
         line: { DEFAULT: "#2C3238", strong: "#3A4149", hover: "#4A525B" },
         ink: { DEFAULT: "#E6E9EC", strong: "#FFFFFF", body: "#C9D0D6" },
         muted: "#9AA3AD",
-        faint: "#6E7781",
+        // Lightened from #6E7781 for WCAG AA (4.5:1 even on raised panels)
+        faint: "#878F99",
+        // Form field borders: 3:1 against every background (WCAG 1.4.11)
+        field: "#68707A",
         skip: "#8B949E",
         accent: "#F28C28",
         link: "#8FB8F5",

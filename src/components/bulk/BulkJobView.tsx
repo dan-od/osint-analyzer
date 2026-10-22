@@ -95,7 +95,7 @@ export default function BulkJobView(props: BulkJobViewProps) {
       </div>
 
       <div className="oa-tablewrap">
-        <table className="oa-table oa-stack min-w-[820px]">
+        <table aria-label="Bulk job targets" className="oa-table oa-stack min-w-[820px]">
           <thead>
             <tr>
               <th scope="col">Target</th>

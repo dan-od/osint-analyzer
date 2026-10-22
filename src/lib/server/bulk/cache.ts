@@ -1,11 +1,12 @@
 // Per-user 24 h result cache. Per user because results depend on which API
 // keys the user has; free-sources-only results are kept apart so they never
 // stand in for a full check.
+import { RETENTION } from '@/lib/retention';
 import { getDb } from '../db';
 import type { AnalysisResult } from '@/types';
 import type { BulkTarget } from '@/types/bulk';
 
-const TTL_MS = 24 * 60 * 60 * 1000;
+const TTL_MS = RETENTION.resultCacheHours * 60 * 60 * 1000;
 
 const cacheKey = (t: BulkTarget, freeOnly: boolean) => `${t.type}:${t.target}${freeOnly ? ':free' : ''}`;
 

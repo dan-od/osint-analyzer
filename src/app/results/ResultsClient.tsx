@@ -13,6 +13,7 @@ import { decodeResult, shareUrl } from '@/lib/client/share';
 import { fetchBulkItem } from '@/lib/client/bulk';
 import { validateInput } from '@/lib/utils';
 import type { AnalysisResult, Indicator } from '@/types';
+import { levelWord } from '@/lib/verdict';
 
 const STATUS_ORDER: Record<Indicator['status'], number> = { fail: 0, warning: 1, pass: 2, unknown: 3 };
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -113,6 +114,7 @@ function Results() {
   }, [result, state.tasks]);
 
   const flaggedSoFar = rows.filter((r) => r.kind === 'finding' && (r.indicator.status === 'fail' || r.indicator.status === 'warning')).length;
+  const announcement = useProgressAnnouncement(running, state.target ?? q, state.done, state.totalSources, flaggedSoFar, result);
 
   const copyLink = async (r: AnalysisResult) => {
     const url = await shareUrl(r);
@@ -141,6 +143,10 @@ function Results() {
 
   return (
     <>
+      {/* Screen readers hear the start, each quarter of the sources, and the verdict; not every row */}
+      <p className="oa-sr" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       <SearchBar value={input} onChange={setInput} onSubmit={submit} detected={detected} action={searchAction} />
 
       {state.phase === 'idle' && !q && <EmptyState />}
@@ -196,7 +202,7 @@ function Results() {
 
       {(running || result) && (
         <div className="oa-wrap flex flex-wrap items-start gap-6 pb-12 pt-6">
-          <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
+          <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
               <h2 className="m-0 text-[18px] font-semibold">Findings</h2>
               <span className="text-[14px] text-muted">
@@ -217,7 +223,7 @@ function Results() {
                 <RawDataPanels details={result.details} />
               </>
             )}
-          </main>
+          </div>
 
           <SideColumn>
             {result && <RecommendedAction items={result.recommendations} />}
@@ -257,4 +263,38 @@ function ErrorBand({ message, status, target }: { message: string; status?: numb
       </div>
     </section>
   );
+}
+
+/** Polite progress messages: start, 25/50/75 %, and the finished verdict */
+function useProgressAnnouncement(
+  running: boolean,
+  target: string,
+  done: number,
+  total: number,
+  flagged: number,
+  result: AnalysisResult | null | undefined
+): string {
+  const [message, setMessage] = useState('');
+  const quarter = useRef(-1);
+  const quarterNow = total ? Math.min(3, Math.floor((done / total) * 4)) : 0;
+
+  useEffect(() => {
+    if (running) {
+      if (quarter.current === -1) setMessage(`Checking ${target}. Results appear as each source answers.`);
+      else if (quarterNow > quarter.current && quarterNow > 0) {
+        setMessage(`${done} of ${total} sources have answered. ${flagged === 0 ? 'Nothing flagged so far.' : `${flagged} flagged so far.`}`);
+      }
+      quarter.current = Math.max(quarter.current, quarterNow);
+      return;
+    }
+    quarter.current = -1;
+    if (result) {
+      const findings = result.indicators.filter((i) => i.status === 'fail' || i.status === 'warning').length;
+      setMessage(
+        `Check finished. ${levelWord(result.riskLevel)} risk, score ${result.riskScore} out of 100. ${findings} finding${findings === 1 ? '' : 's'} flagged.`
+      );
+    }
+  }, [running, target, done, total, flagged, result, quarterNow]);
+
+  return message;
 }

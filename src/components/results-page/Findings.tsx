@@ -43,7 +43,7 @@ const RESULT_INK = { fail: 'text-ink-body', warn: 'text-ink-body', pass: 'text-m
 export function FindingsTable({ rows }: { rows: FindingRow[] }) {
   return (
     <div className="oa-tablewrap">
-      <table className="oa-table oa-stack min-w-[640px]">
+      <table aria-label="Findings" className="oa-table oa-stack min-w-[640px]">
         <thead>
           <tr>
             <th scope="col" className="w-[92px]">Status</th>
@@ -123,7 +123,7 @@ export function RawDataPanels({ details }: { details: Record<string, AnalysisDet
   return (
     <div className="oa-g1 grid grid-cols-2 gap-4">
       {entries.map(([key, detail]) => (
-        <section key={key} aria-label={detail.title} className="flex min-w-0 flex-col gap-2 rounded border border-line px-4 py-[14px]">
+        <section key={key} aria-label={`Raw data: ${detail.title}`} className="flex min-w-0 flex-col gap-2 rounded border border-line px-4 py-[14px]">
           <h3 className="m-0 mb-1 text-[14px] font-semibold text-ink">{detail.title}</h3>
           {Object.entries(detail.data).map(([k, v]) => (
             <div key={k} className="flex justify-between gap-3 text-[13px]">

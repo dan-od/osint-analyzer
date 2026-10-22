@@ -11,7 +11,7 @@ export default function SiteFooter() {
     <footer className="oa-footer mt-auto border-t border-line bg-foot text-[14px] text-muted">
       <div className="oa-wrap flex flex-col gap-10 pb-6 pt-14">
         <div className="flex flex-wrap gap-x-12 gap-y-8">
-          <div className="flex min-w-0 max-w-[380px] flex-[2_1_280px] flex-col gap-[14px]">
+          <div className="flex min-w-0 max-w-[380px] max-[720px]:max-w-none flex-[2_1_280px] flex-col gap-[14px]">
             <Link href="/" className="flex items-center gap-[10px] text-[15px] font-semibold text-ink no-underline hover:text-ink">
               <SweepMark size={22} />
               <span>OSINT Analyzer</span>
@@ -65,6 +65,10 @@ export default function SiteFooter() {
         </div>
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-line pt-5 text-[13px] text-faint">
           <span>© {new Date().getFullYear()} OSINT Analyzer. Not affiliated with any of the sources it queries.</span>
+          <nav aria-label="Legal" className="flex gap-4">
+            <Link href="/privacy" className="text-muted">Privacy</Link>
+            <Link href="/terms" className="text-muted">Terms</Link>
+          </nav>
           <span>
             Built by{' '}
             <a href="https://www.linkedin.com/in/daniel-okoro-3905a328b" target="_blank" rel="noopener noreferrer" className="text-muted">

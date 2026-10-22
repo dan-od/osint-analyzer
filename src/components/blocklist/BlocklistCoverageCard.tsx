@@ -35,7 +35,7 @@ export default function BlocklistCoverageCard({ coverage }: { coverage: Blocklis
       </div>
       {visible.length > 0 ? (
         <div className="oa-tablewrap">
-          <table className="oa-table oa-stack min-w-[560px]">
+          <table aria-label="Blocklist answers" className="oa-table oa-stack min-w-[560px]">
             <thead>
               <tr>
                 <th scope="col" className="w-[120px]">Result</th>

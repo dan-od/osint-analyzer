@@ -1,4 +1,5 @@
 // Bulk job storage
+import { DAY_MS, RETENTION } from '@/lib/retention';
 import crypto from 'crypto';
 import { getDb } from '../db';
 import type { AnalysisResult } from '@/types';
@@ -14,7 +15,7 @@ import {
   type BulkTargetType,
 } from '@/types/bulk';
 
-const JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const JOB_RETENTION_MS = RETENTION.bulkJobDays * DAY_MS;
 const ACTIVE = "('queued', 'running', 'paused')";
 
 interface JobRow {

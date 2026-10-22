@@ -10,6 +10,9 @@ import { COVERAGE_THRESHOLDS, FAIL_MULTIPLIER, RISK_BANDS, SEVERITY_POINTS, TRUS
 import {
   ANONYMOUS_CHECKS_PER_HOUR,
   BULK_MAX_TARGETS,
+  NEW_ACCOUNT_BULK_TARGETS,
+  SIGNUPS_PER_HOUR,
+  VERIFY_MAX_ATTEMPTS,
   DNSBL_TIMEOUT_SECONDS,
   minutesFreeOnly,
   SOURCE_TIMEOUT_SECONDS,
@@ -17,9 +20,17 @@ import {
   VT_PER_MINUTE,
 } from '@/lib/bulk-limits';
 import { levelWord } from '@/lib/verdict';
+import { RETENTION } from '@/lib/retention';
+import { PASSWORD_MIN_LENGTH } from '@/lib/server/auth/password';
 import type { AnalysisType, BlocklistTrust, RiskLevel } from '@/types';
 
-export const metadata = { title: 'Docs · OSINT Analyzer' };
+export const metadata = {
+  title: 'Docs · OSINT Analyzer',
+  description: 'How OSINT Analyzer works: input types, every source it queries, how the score is calculated, bulk checks and API keys.',
+};
+
+/** The redirect URIs to register with Google and GitHub for the public site */
+const OAUTH_REDIRECTS = ['google', 'github'].map((p) => `https://osint.okoro.me/api/auth/callback/${p}`);
 
 const NAV: DocsNavItem[] = [
   { id: 'overview', label: 'Overview' },
@@ -33,6 +44,7 @@ const NAV: DocsNavItem[] = [
   { id: 'reading', label: 'Reading a result' },
   { id: 'scoring', label: 'How the score works' },
   { id: 'bulk', label: 'Bulk checks' },
+  { id: 'accounts', label: 'Accounts and sign-in' },
   { id: 'keys', label: 'API keys' },
   { id: 'privacy', label: 'Privacy and limits' },
 ];
@@ -54,7 +66,7 @@ const INPUT_TYPES: { id: string; type: AnalysisType; title: string; example: str
     example: 'example-login.example',
     text: 'A bare domain or a full link. Links are checked by their host name.',
     looks: ['Registration date and age', 'DNS records', 'Phishing feeds', 'Malware feeds', 'Safe Browsing', 'Domain blocklists', 'Look-alike of a known brand', 'Suspicious TLD', 'Behind a CDN?'],
-    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, PhishStats, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, WHOIS, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
+    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, WHOIS, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
   },
   {
     id: 't-email',
@@ -150,7 +162,7 @@ export default function DocsPage() {
       <div className="oa-wrap flex flex-wrap items-start gap-10 pb-16 pt-8">
         <DocsNav items={NAV} />
 
-        <main className="flex min-w-0 max-w-[820px] flex-[999_1_560px] flex-col gap-14">
+        <div className="flex min-w-0 max-w-[820px] flex-[999_1_560px] flex-col gap-14">
           <Section id="overview">
             <h2 className={h2}>Overview</h2>
             <p className={body}>
@@ -195,7 +207,8 @@ export default function DocsPage() {
               ))}
             </ol>
             <div className="rounded border border-line border-l-[3px] border-l-accent bg-panel px-4 py-3 text-[14px] text-ink-body">
-              On a SOC rotation? <Link href="/login">Log in</Link> to unlock IP checks, bulk checks and your own API keys. See{' '}
+              Want more? <Link href="/signup">Create a free account</Link> to unlock IP checks, bulk checks and your own API
+              keys. Sign in with Google, GitHub or an email and password; see <a href="#accounts">Accounts and sign-in</a>,{' '}
               <a href="#bulk">Bulk checks</a> and <a href="#keys">API keys</a> below.
             </div>
           </Section>
@@ -232,7 +245,7 @@ export default function DocsPage() {
           <Section id="reading">
             <h2 className={h2}>Reading a result</h2>
             <div className="oa-tablewrap">
-              <table className="oa-table oa-stack min-w-[520px]">
+              <table aria-label="What each status means" className="oa-table oa-stack min-w-[520px]">
                 <thead>
                   <tr>
                     <th scope="col" className="w-[120px]">Status</th>
@@ -266,7 +279,7 @@ export default function DocsPage() {
               The total is capped at 100.
             </p>
             <div className="oa-tablewrap">
-              <table className="oa-table oa-stack min-w-[520px]">
+              <table aria-label="Points per finding" className="oa-table oa-stack min-w-[520px]">
                 <thead>
                   <tr>
                     <th scope="col">Severity</th>
@@ -291,7 +304,7 @@ export default function DocsPage() {
               several hits on aggressive ones.
             </p>
             <div className="oa-tablewrap">
-              <table className="oa-table oa-stack min-w-[520px]">
+              <table aria-label="Blocklist trust weights" className="oa-table oa-stack min-w-[520px]">
                 <thead>
                   <tr>
                     <th scope="col" className="w-[110px]">Weight</th>
@@ -353,7 +366,8 @@ export default function DocsPage() {
               <li>Private and reserved IPs are removed before anything is looked up, and listed as skipped in the export.</li>
               <li>Duplicates are collapsed. Anything checked in the last 24 hours is reused unless you turn that off.</li>
               <li>
-                Jobs take up to {BULK_MAX_TARGETS} IPs or domains, one running job per account. Rate limits are respected per key, so
+                New accounts can queue up to {NEW_ACCOUNT_BULK_TARGETS} IPs or domains per job, and an admin can raise that to{' '}
+                {BULK_MAX_TARGETS}. One running job per account. Rate limits are respected per key, so
                 VirusTotal runs at {VT_PER_MINUTE} a minute. &quot;Free sources only&quot; skips every keyed source and finishes{' '}
                 {BULK_MAX_TARGETS} targets in about {minutesFreeOnly(BULK_MAX_TARGETS)} minutes.
               </li>
@@ -368,6 +382,54 @@ export default function DocsPage() {
             </ul>
           </Section>
 
+          <Section id="accounts">
+            <h2 className={h2}>Accounts and sign-in</h2>
+            <p className={body}>
+              Anyone can create an account. Sign in with Google, GitHub, or an email and a password of {PASSWORD_MIN_LENGTH}{' '}
+              characters or more; at most {SIGNUPS_PER_HOUR} new accounts an hour can come from one address. The first account on
+              a new server becomes its admin.
+            </p>
+            <ul className="m-0 flex list-disc flex-col gap-[6px] pl-[18px] text-ink-body">
+              <li>
+                Email and password signups get a confirmation link by email. Opening it asks for the password you chose at
+                signup, so the link alone is useless to anyone else; {VERIFY_MAX_ATTEMPTS} wrong passwords lock it. It works once,
+                expires in {RETENTION.verificationLinkHours} hours, and signs you in; the login form can send a new one (3 an
+                hour per address). You can&apos;t log in until the address
+                is confirmed, and a signup that is never confirmed is deleted after {RETENTION.unverifiedAccountDays} days. Google
+                and GitHub have already confirmed the address, so those signups skip this.
+              </li>
+              <li>
+                Signing in with Google or GitHub when a confirmed account already uses the same email links to that account
+                instead of making a second one, and only when Google or GitHub says the email is verified. An unconfirmed
+                password signup is never linked: the Google or GitHub sign-in gets its own account, and the signup is left
+                alone. If that signup is confirmed later, it joins the Google or GitHub account (without its password).
+              </li>
+              <li>Changing your email in Settings sends a link to the new address; the change happens when you confirm it while logged in.</li>
+              <li>
+                <Link href="/settings#sign-in">Settings</Link> lists your sign-in methods. Link Google or GitHub there, set or remove a
+                password, or unlink a provider. The last method left can&apos;t be removed, so you can&apos;t lock yourself out.
+              </li>
+              <li>
+                <Link href="/settings#delete">Delete my account</Link> removes the account with its keys, recent checks and bulk jobs.
+              </li>
+            </ul>
+            <h3 className="m-0 mt-2 text-[16px] font-semibold text-ink">Running your own copy</h3>
+            <p className={body}>
+              Set <code className="font-mono text-[13px]">AUTH_SECRET</code> and <code className="font-mono text-[13px]">AUTH_URL</code>.
+              Google and GitHub buttons appear only when their keys are set (<code className="font-mono text-[13px]">GOOGLE_CLIENT_ID</code>/
+              <code className="font-mono text-[13px]">GOOGLE_CLIENT_SECRET</code>, <code className="font-mono text-[13px]">GITHUB_ID</code>/
+              <code className="font-mono text-[13px]">GITHUB_SECRET</code>). Confirmation emails go out through Resend with{' '}
+              <code className="font-mono text-[13px]">RESEND_API_KEY</code>, and their links start with{' '}
+              <code className="font-mono text-[13px]">MAIL_LINK_BASE</code>; without a key the links are written to the server
+              log and the sign-up form says so. Register these redirect URIs with each provider:
+            </p>
+            <ul className="m-0 flex list-none flex-col gap-[6px] p-0 font-mono text-[13px] text-ink-body">
+              {OAUTH_REDIRECTS.map((uri) => (
+                <li key={uri} className="break-all">{uri}</li>
+              ))}
+            </ul>
+          </Section>
+
           <Section id="keys">
             <h2 className={h2}>
               API keys <span className="ml-2 text-[13px] font-medium text-muted [font-stretch:100%]">logged in</span>
@@ -378,7 +440,7 @@ export default function DocsPage() {
               never pooled between accounts.
             </p>
             <div className="oa-tablewrap">
-              <table className="oa-table oa-stack min-w-[520px]">
+              <table aria-label="API keys by service" className="oa-table oa-stack min-w-[520px]">
                 <thead>
                   <tr>
                     <th scope="col">Service</th>
@@ -442,7 +504,7 @@ export default function DocsPage() {
               <li>This is a student-built tool. It is useful for triage and not a substitute for your organisation&apos;s security team.</li>
             </ul>
           </Section>
-        </main>
+        </div>
       </div>
     </PageChrome>
   );

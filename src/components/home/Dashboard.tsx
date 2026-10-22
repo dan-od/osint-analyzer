@@ -73,7 +73,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
       </section>
 
       <div className="oa-wrap flex flex-wrap items-start gap-6 pb-12 pt-7">
-        <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <h2 className="m-0 text-[18px] font-semibold">Recent checks</h2>
             <span className="text-[14px] text-muted">Your last 7 days. Targets only, no results are kept.</span>
@@ -84,7 +84,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             </p>
           ) : (
             <div className="oa-tablewrap">
-              <table className="oa-table oa-stack min-w-[620px]">
+              <table aria-label="Recent checks" className="oa-table oa-stack min-w-[620px]">
                 <thead>
                   <tr>
                     <th scope="col">Target</th>
@@ -122,9 +122,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               </table>
             </div>
           )}
-        </main>
+        </div>
 
-        <aside className="flex min-w-0 max-w-[360px] flex-[1_1_300px] flex-col gap-4">
+        <aside className="flex min-w-0 max-w-[360px] max-[720px]:max-w-none flex-[1_1_300px] flex-col gap-4">
           <section aria-label="Your quotas" className="flex flex-col gap-3 rounded border border-line p-4">
             <div className="flex items-baseline justify-between">
               <h2 className="m-0 text-[15px] font-semibold">Your quotas today</h2>

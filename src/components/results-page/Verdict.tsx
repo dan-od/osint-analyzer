@@ -38,10 +38,11 @@ export function SearchBar({
           autoComplete="off"
           spellCheck={false}
           placeholder="IP, domain, email, phone or wallet"
+          aria-describedby="q-detected"
           className="oa-input oa-mono flex-[999_1_320px] px-[14px]"
         />
         <div className="flex flex-auto gap-2">
-          <span className="inline-flex h-11 items-center rounded border border-line-strong px-3 text-[13px] text-muted whitespace-nowrap">
+          <span id="q-detected" className="inline-flex h-11 items-center rounded border border-line-strong px-3 text-[13px] text-muted whitespace-nowrap">
             {detected ? `Detected: ${TYPE_SHORT[detected]}` : 'Type not recognised'}
           </span>
           {action.kind === 'cancel' ? (
@@ -63,7 +64,7 @@ export function SearchBar({
 
 function ScorePanel({ children }: { children: ReactNode }) {
   return (
-    <dl className="relative m-0 box-border grid max-w-[420px] flex-[1_1_300px] grid-cols-2 gap-x-8 gap-y-[14px] rounded border border-line bg-[rgba(21,24,28,0.7)] px-5 py-[18px]">
+    <dl className="relative m-0 box-border grid max-w-[420px] max-[720px]:max-w-none flex-[1_1_300px] grid-cols-2 gap-x-8 gap-y-[14px] rounded border border-line bg-[rgba(21,24,28,0.7)] px-5 py-[18px]">
       <CornerTicks />
       {children}
     </dl>
@@ -179,7 +180,7 @@ export function CheckingBand({
         <div className="flex min-w-0 flex-[999_1_420px] flex-col gap-[10px]">
           <div className="flex items-center gap-[14px]">
             <ConvergeMark size={52} />
-            <span className="text-[13px] font-semibold text-muted" aria-live="polite">
+            <span className="text-[13px] font-semibold text-muted">
               {total ? `Checking, ${done} of ${total} sources in` : 'Starting the check'}
             </span>
           </div>
@@ -189,7 +190,14 @@ export function CheckingBand({
             {flagged === 0 ? 'Nothing flagged so far.' : `${flagged} finding${flagged === 1 ? '' : 's'} flagged so far.`} Rows fill in as each source
             replies; you can read the finished ones now.
           </p>
-          <div className="mt-[6px] h-1 max-w-[520px] overflow-hidden rounded-[2px] bg-line">
+          <div
+            role="progressbar"
+            aria-label="Sources answered"
+            aria-valuemin={0}
+            aria-valuemax={total || 1}
+            aria-valuenow={done}
+            className="mt-[6px] h-1 max-w-[520px] overflow-hidden rounded-[2px] bg-line"
+          >
             <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${percent}%` }} />
           </div>
         </div>

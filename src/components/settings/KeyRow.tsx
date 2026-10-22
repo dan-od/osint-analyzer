@@ -59,7 +59,13 @@ export default function KeyRow({ service, status, pending, error, disabled, onSa
         {status.maskedKey ? (
           <span className="flex flex-wrap items-baseline gap-x-3">
             <span className="font-mono text-[13px] text-ink">{status.maskedKey}</span>
-            <button type="button" onClick={remove} disabled={pending} className="border-0 bg-transparent p-0 text-[13px] text-link cursor-pointer hover:text-[#B9D3FA]">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              aria-label={`Delete ${service.name} key`}
+              className="border-0 bg-transparent p-0 text-[13px] text-link underline underline-offset-2 cursor-pointer hover:text-[#B9D3FA]"
+            >
               Delete
             </button>
           </span>
@@ -73,12 +79,17 @@ export default function KeyRow({ service, status, pending, error, disabled, onSa
       </div>
       <form onSubmit={submit} className="flex min-w-0 flex-col gap-1">
         <div className="flex gap-2">
+          <label htmlFor={`key-${service.id}`} className="oa-sr">
+            {service.name} API key
+          </label>
           <input
+            id={`key-${service.id}`}
             type="password"
             autoComplete="off"
             spellCheck={false}
             placeholder={status.maskedKey ? 'Paste new key' : 'Paste key'}
-            aria-label={`API key for ${service.name}`}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `key-${service.id}-error` : undefined}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={disabled}
@@ -88,7 +99,11 @@ export default function KeyRow({ service, status, pending, error, disabled, onSa
             {pending ? 'Saving' : 'Save'}
           </button>
         </div>
-        {error && <span role="alert" className="text-[12px] text-ink">{error}</span>}
+        {error && (
+          <span id={`key-${service.id}-error`} role="alert" className="text-[12px] text-ink">
+            {error}
+          </span>
+        )}
       </form>
     </div>
   );

@@ -92,7 +92,7 @@ export default function PublicHome() {
             </div>
           </div>
 
-          <div aria-label="Example verdicts" className="oa-tiltwrap relative flex min-h-[330px] min-w-0 max-w-[420px] flex-[1_1_340px] items-center justify-center">
+          <div role="group" aria-label="Example verdicts" className="oa-tiltwrap relative flex min-h-[330px] min-w-0 max-w-[420px] flex-[1_1_340px] items-center justify-center">
             <div className="oa-tilt absolute flex w-[86%] max-w-[360px] flex-col gap-2 rounded border border-line bg-panel px-5 py-[18px] opacity-90 [transform:rotate(3deg)_translate(28px,-58px)]">
               <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-pass-ink">
                 <span className="oa-dot pass !mr-0" />
@@ -237,7 +237,7 @@ export default function PublicHome() {
                 Running a SOC or a <span className="text-accent">team rotation?</span>
               </h2>
               <p className="m-0 max-w-[52ch] text-[15px] text-muted">
-                Log in for bulk checks straight from a SIEM export, CSV back out with a verdict column, and your own API keys
+                Create a free account for bulk checks straight from a SIEM export, CSV back out with a verdict column, and your own API keys
                 with quotas nobody else can burn.
               </p>
               <div className="mt-2">
@@ -246,7 +246,7 @@ export default function PublicHome() {
                 </Link>
               </div>
             </div>
-            <div className="relative flex min-w-0 max-w-[380px] flex-[1_1_300px] flex-col gap-2 rounded border border-line bg-ground p-[14px] text-[12px]">
+            <div className="relative flex min-w-0 max-w-[380px] max-[720px]:max-w-none flex-[1_1_300px] flex-col gap-2 rounded border border-line bg-ground p-[14px] text-[12px]">
               <CornerTicks />
               <div className="flex justify-between text-muted"><span>fortisiem-dns-oct03.csv</span><span>148 / 198</span></div>
               <div className="h-[3px] overflow-hidden rounded-[2px] bg-line"><div className="h-full w-3/4 bg-accent" /></div>
