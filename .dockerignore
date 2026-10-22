@@ -1,4 +1,9 @@
 node_modules
 .next
-.git    
+.git
 data
+design
+.github
+# Server-side env files must never be copied into the image
+.env*
+!.env.example

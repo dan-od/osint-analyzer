@@ -6,3 +6,6 @@ data/
 *.db
 design/
 osint.zip
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
