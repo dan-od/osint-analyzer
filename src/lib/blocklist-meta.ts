@@ -79,5 +79,4 @@ export const API_BLOCKLIST_TRUST: Record<string, { name: string; trust: Blocklis
   otx: { name: 'AlienVault OTX', trust: 'medium' },
   phishtank: { name: 'PhishTank', trust: 'medium' },
   openphish: { name: 'OpenPhish', trust: 'medium' },
-  phishstats: { name: 'PhishStats', trust: 'low' },
 };

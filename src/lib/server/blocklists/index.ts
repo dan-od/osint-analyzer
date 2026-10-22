@@ -65,7 +65,7 @@ export async function ipBlocklistCoverage(
 
 /**
  * Domain coverage. `existing` carries results the domain analyzer already
- * fetched (Google Safe Browsing, OpenPhish, PhishStats) so they're counted too.
+ * fetched (Google Safe Browsing, OpenPhish) so they're counted too.
  */
 export async function domainBlocklistCoverage(
   domain: string,

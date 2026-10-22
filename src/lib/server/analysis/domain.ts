@@ -8,14 +8,12 @@ import {
   checkWhois,
   checkVirusTotal,
   checkGoogleSafeBrowsing,
-  checkPhishStats,
   checkOpenPhish,
   hasSuspiciousTLD,
   checkTyposquatting,
   type AbuseIPDBResult,
   type DnsResult,
   type GoogleSafeBrowsingResult,
-  type PhishStatsResult,
   type VirusTotalResult,
   type WhoisResult,
 } from '@/lib/osint-apis';
@@ -86,7 +84,7 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
     label: 'Domain age',
     source: 'WHOIS',
     serverKeyEnv: 'WHOISXML_API_KEY',
-    // WhoisXML only has a shared server key (500/month); bulk jobs would burn through it
+    // WhoisXML only has a shared server key with a small free quota; bulk jobs would burn through it
     skip: ctx.mode === 'bulk' ? 'Not run in bulk jobs (shared WHOIS quota).' : undefined,
     run: () => checkWhois(domain),
     build: (whois, out) => {
@@ -134,23 +132,6 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
     },
   });
 
-  runner.add<PhishStatsResult>({
-    id: 'phishstats',
-    label: 'PhishStats',
-    source: 'PhishStats',
-    run: () => checkPhishStats(domain),
-    build: (ps, out) => {
-      out.indicators.push({
-        id: 'phishstats',
-        name: 'PhishStats',
-        status: ps.found ? 'fail' : 'pass',
-        description: ps.found ? `In the phishing database (score ${ps.phishScore}).` : 'Not in the phishing database.',
-        severity: ps.found ? 'critical' : 'low',
-        source: 'PhishStats',
-      });
-    },
-  });
-
   runner.add<{ found: boolean; url?: string }>({
     id: 'openphish',
     label: 'OpenPhish',
@@ -177,10 +158,9 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
     run: async ({ report, wait }) => {
       const coverage = await domainBlocklistCoverage(domain, ctx, [], report);
       // Fold in the feeds the domain analyzer checks itself
-      const [gsb, openphish, phishstats] = await Promise.all([
+      const [gsb, openphish] = await Promise.all([
         wait<GoogleSafeBrowsingResult>('safe-browsing'),
         wait<{ found: boolean }>('openphish'),
-        wait<PhishStatsResult>('phishstats'),
       ]);
       const existing: BlocklistSourceResult[] = [];
       const add = (id: keyof typeof API_BLOCKLIST_TRUST, listed: boolean | undefined) => {
@@ -188,7 +168,6 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
       };
       add('google-safe-browsing', gsb?.isMalicious);
       add('openphish', openphish?.found);
-      add('phishstats', phishstats?.found);
       return summarizeCoverage([...coverage.sources, ...existing]);
     },
     build: (coverage, out) => {

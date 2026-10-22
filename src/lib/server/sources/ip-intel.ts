@@ -1,5 +1,6 @@
 // IP reputation sources added for IP analysis. AbuseIPDB and VirusTotal live
 // in lib/osint-apis.ts (shared with domain analysis).
+import { asUnavailable, unavailableResponse } from '@/lib/source-error';
 
 const TIMEOUT_MS = 8000;
 
@@ -25,10 +26,7 @@ export async function checkGreyNoise(ip: string, apiKey: string): Promise<GreyNo
     if (response.status === 404) {
       return { noise: false, riot: false, classification: null, name: null, lastSeen: null, link: null, found: false };
     }
-    if (!response.ok) {
-      console.error('GreyNoise API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('GreyNoise', response);
     const data = await response.json();
     return {
       noise: !!data.noise,
@@ -40,8 +38,7 @@ export async function checkGreyNoise(ip: string, apiKey: string): Promise<GreyNo
       found: true,
     };
   } catch (error) {
-    console.error('GreyNoise fetch error:', error);
-    return null;
+    throw asUnavailable('GreyNoise', error);
   }
 }
 
@@ -64,10 +61,7 @@ export async function checkInternetDB(ip: string): Promise<InternetDbResult | nu
     if (response.status === 404) {
       return { ports: [], hostnames: [], tags: [], vulns: [], cpes: [], found: false };
     }
-    if (!response.ok) {
-      console.error('InternetDB error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('InternetDB', response);
     const data = await response.json();
     return {
       ports: data.ports ?? [],
@@ -78,7 +72,6 @@ export async function checkInternetDB(ip: string): Promise<InternetDbResult | nu
       found: true,
     };
   } catch (error) {
-    console.error('InternetDB fetch error:', error);
-    return null;
+    throw asUnavailable('InternetDB', error);
   }
 }

@@ -1,6 +1,7 @@
 // Real OSINT API integrations
 // This file contains actual API calls to various OSINT services
 // Note: DNS lookups are handled in the API route to avoid browser compatibility issues
+import { asUnavailable, Cooldown, responseDetail, SourceUnavailable, statusReason, unavailableResponse } from './source-error';
 
 // Types
 export interface DnsResult {
@@ -114,14 +115,6 @@ export interface GoogleSafeBrowsingResult {
   threats: string[];
   platformTypes: string[];
   threatEntryTypes: string[];
-}
-
-export interface PhishStatsResult {
-  found: boolean;
-  url: string;
-  phishScore: number;
-  dateAdded: string | null;
-  ipAddress: string | null;
 }
 
 export interface URLScanResult {
@@ -275,10 +268,7 @@ export async function checkAbuseIPDB(ip: string, apiKey: string): Promise<AbuseI
       }
     );
 
-    if (!response.ok) {
-      console.error('AbuseIPDB API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('AbuseIPDB', response);
 
     const data = await response.json();
     const result = data.data;
@@ -296,8 +286,7 @@ export async function checkAbuseIPDB(ip: string, apiKey: string): Promise<AbuseI
       isWhitelisted: result.isWhitelisted || false,
     };
   } catch (error) {
-    console.error('AbuseIPDB fetch error:', error);
-    return null;
+    throw asUnavailable('AbuseIPDB', error);
   }
 }
 
@@ -323,10 +312,7 @@ export async function checkEmailRep(email: string): Promise<EmailRepResult | nul
       { headers }
     );
 
-    if (!response.ok) {
-      console.error('EmailRep API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('EmailRep', response);
 
     const data = await response.json();
 
@@ -359,8 +345,7 @@ export async function checkEmailRep(email: string): Promise<EmailRepResult | nul
       },
     };
   } catch (error) {
-    console.error('EmailRep fetch error:', error);
-    return null;
+    throw asUnavailable('EmailRep', error);
   }
 }
 
@@ -368,17 +353,33 @@ export async function checkEmailRep(email: string): Promise<EmailRepResult | nul
 // WHOISXML API
 // ============================================
 
-export async function checkWhois(domain: string): Promise<WhoisResult | null> {
-  const apiKey = process.env.WHOISXML_API_KEY;
-  
-  if (!apiKey) {
-    console.log('WhoisXML API key not configured');
-    return null;
+// A refused key or empty balance stays that way, so stop calling for a while
+const whoisCooldown = new Cooldown(10 * 60 * 1000);
+
+/**
+ * WhoisXML explains a refusal in the body, e.g. 401
+ * {"ErrorMessage":{"errorCode":"AUTHENTICATE_05","msg":"no active subscription"}}
+ * when the key is fine but the free credits are used up.
+ */
+function whoisRefusalReason(body: string): string {
+  if (/subscription|credit|balance|quota|limit/i.test(body)) {
+    return 'WHOIS unavailable: the WhoisXML account has no credits left (no active subscription).';
   }
+  if (/api ?key|apikey|authenticat|invalid key/i.test(body)) {
+    return 'WHOIS unavailable: WhoisXML rejected the API key.';
+  }
+  return 'WHOIS unavailable: WhoisXML refused the request (key rejected or out of credits).';
+}
+
+export async function checkWhois(domain: string): Promise<WhoisResult | null> {
+  // Trimmed: a stray space or \r from the env file would make every call a 401
+  const apiKey = process.env.WHOISXML_API_KEY?.trim();
+  if (!apiKey) throw new SourceUnavailable('WHOIS unavailable: no WhoisXML key on this server.');
+  whoisCooldown.check();
 
   try {
     const response = await fetch(
-      `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${apiKey}&domainName=${encodeURIComponent(domain)}&outputFormat=JSON`,
+      `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${encodeURIComponent(apiKey)}&domainName=${encodeURIComponent(domain)}&outputFormat=JSON`,
       {
         headers: {
           'Accept': 'application/json',
@@ -386,12 +387,20 @@ export async function checkWhois(domain: string): Promise<WhoisResult | null> {
       }
     );
 
-    if (!response.ok) {
-      console.error('WhoisXML API error:', response.status);
-      return null;
+    if (response.status === 401 || response.status === 403) {
+      const detail = await responseDetail(response, apiKey);
+      throw whoisCooldown.trip(new SourceUnavailable(whoisRefusalReason(detail), detail));
     }
+    if (!response.ok) throw await unavailableResponse('WHOIS', response, { secret: apiKey });
 
     const data = await response.json();
+    // Some errors come back as 200 with an ErrorMessage instead of a record
+    if (data.ErrorMessage) {
+      throw new SourceUnavailable(
+        'WHOIS unavailable: WhoisXML returned an error.',
+        JSON.stringify(data.ErrorMessage).split(apiKey).join('[key]')
+      );
+    }
     const record = data.WhoisRecord;
 
     if (!record) return null;
@@ -413,8 +422,7 @@ export async function checkWhois(domain: string): Promise<WhoisResult | null> {
       isNewDomain: domainAge !== null && domainAge < 365,
     };
   } catch (error) {
-    console.error('WhoisXML fetch error:', error);
-    return null;
+    throw asUnavailable('WHOIS', error);
   }
 }
 
@@ -443,10 +451,7 @@ export async function checkPhone(phone: string): Promise<PhoneResult | null> {
       }
     );
 
-    if (!response.ok) {
-      console.error('NumVerify API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('NumVerify', response);
 
     const data = await response.json();
 
@@ -467,8 +472,7 @@ export async function checkPhone(phone: string): Promise<PhoneResult | null> {
       lineType: data.line_type || null,
     };
   } catch (error) {
-    console.error('NumVerify fetch error:', error);
-    return null;
+    throw asUnavailable('NumVerify', error);
   }
 }
 
@@ -503,10 +507,7 @@ export async function checkVirusTotal(
       },
     });
 
-    if (!response.ok) {
-      console.error('VirusTotal API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('VirusTotal', response);
 
     const data = await response.json();
     const stats = data.data?.attributes?.last_analysis_stats || {};
@@ -528,8 +529,7 @@ export async function checkVirusTotal(
       reputation: typeof data.data?.attributes?.reputation === 'number' ? data.data.attributes.reputation : null,
     };
   } catch (error) {
-    console.error('VirusTotal fetch error:', error);
-    return null;
+    throw asUnavailable('VirusTotal', error);
   }
 }
 
@@ -548,10 +548,7 @@ export async function checkBitcoinWallet(address: string): Promise<CryptoResult 
       }
     );
 
-    if (!response.ok) {
-      console.error('Blockchain.info API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('Blockchain.info', response);
 
     const data = await response.json();
 
@@ -571,8 +568,7 @@ export async function checkBitcoinWallet(address: string): Promise<CryptoResult 
       isValid: true,
     };
   } catch (error) {
-    console.error('Blockchain.info fetch error:', error);
-    return null;
+    throw asUnavailable('Blockchain.info', error);
   }
 }
 
@@ -617,8 +613,7 @@ export async function checkEthereumWallet(address: string): Promise<CryptoResult
       isValid: true,
     };
   } catch (error) {
-    console.error('Etherscan fetch error:', error);
-    return null;
+    throw asUnavailable('Etherscan', error);
   }
 }
 
@@ -667,10 +662,7 @@ export async function verifyEmailHunter(email: string, apiKey: string): Promise<
       }
     );
 
-    if (!response.ok) {
-      console.error('Hunter.io API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('Hunter.io', response);
 
     const data = await response.json();
     const result = data.data;
@@ -689,8 +681,7 @@ export async function verifyEmailHunter(email: string, apiKey: string): Promise<
       block: result.block,
     };
   } catch (error) {
-    console.error('Hunter.io fetch error:', error);
-    return null;
+    throw asUnavailable('Hunter.io', error);
   }
 }
 
@@ -698,17 +689,48 @@ export async function verifyEmailHunter(email: string, apiKey: string): Promise<
 // GOOGLE SAFE BROWSING API
 // ============================================
 
-export async function checkGoogleSafeBrowsing(url: string): Promise<GoogleSafeBrowsingResult | null> {
-  const apiKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY;
-  
-  if (!apiKey) {
-    console.log('Google Safe Browsing API key not configured');
-    return null;
+const safeBrowsingCooldown = new Cooldown(10 * 60 * 1000);
+
+// google.rpc.ErrorInfo reasons Google gives when it refuses a key
+const SAFE_BROWSING_REFUSALS: Record<string, string> = {
+  SERVICE_DISABLED: 'the Safe Browsing API is not enabled in the key’s Google Cloud project',
+  ACCESS_NOT_CONFIGURED: 'the Safe Browsing API is not enabled in the key’s Google Cloud project',
+  BILLING_DISABLED: 'billing is disabled on the key’s Google Cloud project',
+  API_KEY_SERVICE_BLOCKED: 'the key is restricted to other APIs',
+  API_KEY_HTTP_REFERRER_BLOCKED: 'the key only allows certain websites',
+  API_KEY_IP_ADDRESS_BLOCKED: 'the key does not allow this server’s IP address',
+  API_KEY_ANDROID_APP_BLOCKED: 'the key is restricted to an Android app',
+  API_KEY_IOS_APP_BLOCKED: 'the key is restricted to an iOS app',
+  API_KEY_INVALID: 'the key is not valid',
+  RATE_LIMIT_EXCEEDED: 'the daily quota is used up',
+};
+
+async function safeBrowsingFailure(response: Response, apiKey: string) {
+  const detail = await responseDetail(response, apiKey);
+  let why: string | undefined;
+  try {
+    const error = JSON.parse(detail.replace(/^HTTP \d+ /, '')).error ?? {};
+    const reasons: string[] = (error.details ?? []).map((d: { reason?: string }) => d.reason).filter(Boolean);
+    why = reasons.map((r) => SAFE_BROWSING_REFUSALS[r]).find(Boolean);
+    if (!why && /not been used|disabled/i.test(error.message ?? '')) why = SAFE_BROWSING_REFUSALS.SERVICE_DISABLED;
+  } catch {
+    // body wasn't JSON
   }
+  if (!why && (response.status === 400 || response.status === 403)) why = `HTTP ${response.status}`;
+  return new SourceUnavailable(
+    why ? `Safe Browsing unavailable: Google refused the key (${why}).` : `Safe Browsing unavailable: ${statusReason(response.status)}.`,
+    detail
+  );
+}
+
+export async function checkGoogleSafeBrowsing(url: string): Promise<GoogleSafeBrowsingResult | null> {
+  const apiKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY?.trim();
+  if (!apiKey) throw new SourceUnavailable('Safe Browsing unavailable: no Google key on this server.');
+  safeBrowsingCooldown.check();
 
   try {
     const response = await fetch(
-      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${encodeURIComponent(apiKey)}`,
       {
         method: 'POST',
         headers: {
@@ -736,8 +758,9 @@ export async function checkGoogleSafeBrowsing(url: string): Promise<GoogleSafeBr
     );
 
     if (!response.ok) {
-      console.error('Google Safe Browsing API error:', response.status);
-      return null;
+      const failure = await safeBrowsingFailure(response, apiKey);
+      // A refused key won't fix itself between checks; a 5xx or 429 might
+      throw response.status === 400 || response.status === 403 ? safeBrowsingCooldown.trip(failure) : failure;
     }
 
     const data = await response.json();
@@ -758,57 +781,7 @@ export async function checkGoogleSafeBrowsing(url: string): Promise<GoogleSafeBr
       threatEntryTypes: [],
     };
   } catch (error) {
-    console.error('Google Safe Browsing fetch error:', error);
-    return null;
-  }
-}
-
-// ============================================
-// PHISHSTATS API (Free - No API key required)
-// ============================================
-
-export async function checkPhishStats(url: string): Promise<PhishStatsResult | null> {
-  try {
-    // PhishStats has a public API that can be queried
-    const domain = url.replace(/^https?:\/\//, '').split('/')[0];
-    
-    const response = await fetch(
-      `https://phishstats.info/api/phishing?_where=(url,like,~${encodeURIComponent(domain)}~)&_sort=-date`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error('PhishStats API error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (data && data.length > 0) {
-      const match = data[0];
-      return {
-        found: true,
-        url: match.url || url,
-        phishScore: match.score || 0,
-        dateAdded: match.date || null,
-        ipAddress: match.ip || null,
-      };
-    }
-
-    return {
-      found: false,
-      url: url,
-      phishScore: 0,
-      dateAdded: null,
-      ipAddress: null,
-    };
-  } catch (error) {
-    console.error('PhishStats fetch error:', error);
-    return null;
+    throw asUnavailable('Safe Browsing', error);
   }
 }
 
@@ -833,10 +806,7 @@ export async function checkURLScan(url: string): Promise<URLScanResult | null> {
 
     const response = await fetch(searchUrl, { headers });
 
-    if (!response.ok) {
-      console.error('URLScan API error:', response.status);
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('URLScan', response);
 
     const data = await response.json();
     
@@ -855,8 +825,7 @@ export async function checkURLScan(url: string): Promise<URLScanResult | null> {
 
     return null;
   } catch (error) {
-    console.error('URLScan fetch error:', error);
-    return null;
+    throw asUnavailable('URLScan', error);
   }
 }
 
@@ -878,10 +847,7 @@ export async function checkOpenPhish(domain: string): Promise<{ found: boolean; 
         },
       });
 
-      if (!response.ok) {
-        console.error('OpenPhish API error:', response.status);
-        return null;
-      }
+      if (!response.ok) throw await unavailableResponse('OpenPhish', response);
 
       openPhishCache = { urls: (await response.text()).split('\n'), fetchedAt: Date.now() };
     }
@@ -895,8 +861,7 @@ export async function checkOpenPhish(domain: string): Promise<{ found: boolean; 
       url: matchingUrl || undefined,
     };
   } catch (error) {
-    console.error('OpenPhish fetch error:', error);
-    return null;
+    throw asUnavailable('OpenPhish', error);
   }
 }
 
@@ -943,8 +908,7 @@ export async function checkSpamhausDBL(domain: string): Promise<{ listed: boolea
 
     return { listed: false };
   } catch (error) {
-    console.error('Spamhaus DBL check error:', error);
-    return null;
+    throw asUnavailable('Spamhaus DBL', error);
   }
 }
 
@@ -986,8 +950,7 @@ export async function checkSURBL(domain: string): Promise<{ listed: boolean; lis
 
     return { listed: false, lists: [] };
   } catch (error) {
-    console.error('SURBL check error:', error);
-    return null;
+    throw asUnavailable('SURBL', error);
   }
 }
 
@@ -1039,8 +1002,7 @@ export async function checkIPBlacklists(ip: string): Promise<{
       totalChecked: blacklistServers.length,
     };
   } catch (error) {
-    console.error('IP blacklist check error:', error);
-    return null;
+    throw asUnavailable('IP blacklist', error);
   }
 }
 
@@ -1226,7 +1188,7 @@ export async function checkChainAbuse(address: string): Promise<ChainAbuseResult
       riskScore: 0,
     };
   } catch (error) {
-    console.error('ChainAbuse check error:', error);
+    console.warn('ChainAbuse unavailable, trying the public lists:', error instanceof Error ? error.message : error);
     return await checkChainAbuseAlternative(address);
   }
 }
@@ -1266,8 +1228,7 @@ async function checkChainAbuseAlternative(address: string): Promise<ChainAbuseRe
       riskScore: 0,
     };
   } catch (error) {
-    console.error('ChainAbuse alternative check error:', error);
-    return null;
+    throw asUnavailable('ChainAbuse alternative', error);
   }
 }
 
@@ -1281,9 +1242,7 @@ export async function checkBTCBlackDNSBL(address: string): Promise<{ listed: boo
     // Hash the address for lookup (BTC Black uses specific format)
     const response = await fetch(`${dnsApiBase}?name=${address}.btc.black&type=A`);
     
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('BTC Black', response);
 
     const data = await response.json();
     
@@ -1296,8 +1255,7 @@ export async function checkBTCBlackDNSBL(address: string): Promise<{ listed: boo
 
     return { listed: false };
   } catch (error) {
-    console.error('BTC Black check error:', error);
-    return null;
+    throw asUnavailable('BTC Black', error);
   }
 }
 
@@ -1352,8 +1310,7 @@ export async function checkRansomwareAddresses(address: string): Promise<CryptoS
 
     return { isScam: false, source: 'Ransomware Database' };
   } catch (error) {
-    console.error('Ransomware address check error:', error);
-    return null;
+    throw asUnavailable('Ransomware address', error);
   }
 }
 
@@ -1416,8 +1373,7 @@ export async function checkGitHubScamLists(address: string): Promise<CryptoScamD
 
     return { isScam: false, source: 'GitHub Scam Lists' };
   } catch (error) {
-    console.error('GitHub scam list check error:', error);
-    return null;
+    throw asUnavailable('GitHub scam list', error);
   }
 }
 
@@ -1444,9 +1400,7 @@ export async function checkChainalysisSanctions(address: string): Promise<{
       }
     );
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('Chainalysis', response, { secret: apiKey });
 
     const data = await response.json();
     
@@ -1456,8 +1410,7 @@ export async function checkChainalysisSanctions(address: string): Promise<{
       entity: data.entity || undefined,
     };
   } catch (error) {
-    console.error('Chainalysis sanctions check error:', error);
-    return null;
+    throw asUnavailable('Chainalysis sanctions', error);
   }
 }
 
@@ -1589,14 +1542,15 @@ export async function checkIPQSEmail(email: string, apiKey: string): Promise<IPQ
       }
     );
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('IPQualityScore', response, { secret: apiKey });
 
     const data = await response.json();
     
     if (!data.success) {
-      return null;
+      throw new SourceUnavailable(
+        `IPQualityScore unavailable: ${data.message || 'request refused'}`.replace(/\.?$/, '.'),
+        JSON.stringify(data).split(apiKey).join('[key]')
+      );
     }
 
     return {
@@ -1618,8 +1572,7 @@ export async function checkIPQSEmail(email: string, apiKey: string): Promise<IPQ
       commonProvider: data.common || false,
     };
   } catch (error) {
-    console.error('IPQS Email check error:', error);
-    return null;
+    throw asUnavailable('IPQS Email', error);
   }
 }
 
@@ -1659,14 +1612,15 @@ export async function checkIPQSPhone(phone: string, apiKey: string): Promise<IPQ
       }
     );
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('IPQualityScore', response, { secret: apiKey });
 
     const data = await response.json();
     
     if (!data.success) {
-      return null;
+      throw new SourceUnavailable(
+        `IPQualityScore unavailable: ${data.message || 'request refused'}`.replace(/\.?$/, '.'),
+        JSON.stringify(data).split(apiKey).join('[key]')
+      );
     }
 
     return {
@@ -1687,8 +1641,7 @@ export async function checkIPQSPhone(phone: string, apiKey: string): Promise<IPQ
       name: data.name || null,
     };
   } catch (error) {
-    console.error('IPQS Phone check error:', error);
-    return null;
+    throw asUnavailable('IPQS Phone', error);
   }
 }
 
@@ -1737,9 +1690,7 @@ export async function checkHaveIBeenPwned(email: string, apiKey: string): Promis
       };
     }
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) throw await unavailableResponse('Have I Been Pwned', response);
 
     const data = await response.json();
     
@@ -1786,8 +1737,7 @@ export async function checkHaveIBeenPwned(email: string, apiKey: string): Promis
       pasteCount,
     };
   } catch (error) {
-    console.error('HIBP check error:', error);
-    return null;
+    throw asUnavailable('HIBP', error);
   }
 }
 
@@ -1835,8 +1785,7 @@ export async function checkPhoneSpamDatabases(phone: string): Promise<PhoneSpamR
       source: 'Spam Databases',
     };
   } catch (error) {
-    console.error('Phone spam check error:', error);
-    return null;
+    throw asUnavailable('Phone spam', error);
   }
 }
 
@@ -2048,8 +1997,7 @@ export async function checkSpamCallerDB(phone: string): Promise<{
       type: null,
     };
   } catch (error) {
-    console.error('Spam caller DB check error:', error);
-    return null;
+    throw asUnavailable('Spam caller DB', error);
   }
 }
 

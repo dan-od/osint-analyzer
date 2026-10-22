@@ -7,7 +7,7 @@ const TIMEOUT_MS = 8000;
 type SourceStatus = Pick<BlocklistSourceResult, 'status' | 'detail'>;
 
 function failed(error: unknown, source: string): SourceStatus {
-  console.error(`${source} error:`, error instanceof Error ? error.message : error);
+  console.warn(`${source} unavailable:`, error instanceof Error ? error.message : error);
   return { status: 'error', detail: error instanceof Error && error.name === 'TimeoutError' ? 'timed out' : 'request failed' };
 }
 

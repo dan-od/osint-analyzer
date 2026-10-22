@@ -1,5 +1,5 @@
 // Every external source the analyzers query, in one place. All the numbers
-// in the UI copy ("58 sources", "21 DNS blocklists", per-type counts) are
+// in the UI copy ("57 sources", "21 DNS blocklists", per-type counts) are
 // derived from this list so they can't drift from the code.
 //
 // Counting rule: each DNS blocklist zone and each downloaded feed is its own
@@ -32,7 +32,6 @@ const API_SOURCES: SourceEntry[] = [
   { id: 'internetdb', name: 'Shodan InternetDB', kind: 'api', types: ['ip'] },
   { id: 'ip2proxy', name: 'IP2Proxy LITE', kind: 'database', types: ['ip'] },
   { id: 'google-safe-browsing', name: 'Google Safe Browsing', kind: 'api', types: ['domain'], serverKeyEnv: 'GOOGLE_SAFE_BROWSING_API_KEY' },
-  { id: 'phishstats', name: 'PhishStats', kind: 'api', types: ['domain'] },
   { id: 'openphish', name: 'OpenPhish', kind: 'feed', types: ['domain'] },
   { id: 'phishtank', name: 'PhishTank', kind: 'api', types: ['domain'] },
   { id: 'urlhaus', name: 'URLhaus', kind: 'api', types: ['ip', 'domain'], service: 'abusech' },

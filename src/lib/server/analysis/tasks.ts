@@ -1,9 +1,11 @@
 // Runs an analyzer's checks in parallel as named tasks. Each task resolves its
 // API key, runs with a timeout, turns its answer into findings, and reports
 // to the progress tracker as soon as it is done. A check that could not run
-// becomes a "Skipped" finding with the reason (no key, quota, timeout, error).
+// becomes a "Skipped" finding with the reason (no key, quota, timeout, error);
+// skipped findings never count for or against the score.
 import type { AnalysisDetail, AnalysisType, Indicator, PivotLink, PlannedTask } from '@/types';
 import { getService, type ServiceId } from '@/lib/services';
+import { asUnavailable } from '@/lib/source-error';
 import type { AnalysisContext } from './context';
 import { SOURCE_TIMEOUT_SECONDS } from '@/lib/bulk-limits';
 
@@ -165,8 +167,10 @@ export class TaskRunner {
       if (error instanceof TimeoutError) {
         skip(`Timed out after ${Math.round((spec.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000)} s.`);
       } else {
-        console.error(`Check ${spec.id} failed:`, error);
-        skip(`No answer from ${spec.source} (request failed).`);
+        // Expected failures (bad key, no credits, service down) are one log line, not a stack trace
+        const failure = asUnavailable(spec.source, error);
+        if (failure.detail) console.warn(`Source ${spec.id} skipped: ${failure.reason} [${failure.detail}]`);
+        skip(failure.reason);
       }
       return null;
     } finally {
