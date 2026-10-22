@@ -49,12 +49,12 @@ function sortItems(items: BulkItemSummary[], sort: ScoreSort): BulkItemSummary[]
   });
 }
 
-export function useBulk(initialJobId: string | null) {
+export function useBulk(initialJobId: string | null, maxTargets: number) {
   // Input
   const [input, setInput] = useState('');
   const [name, setName] = useState('Pasted list');
   const [options, setOptions] = useState<BulkOptions>(DEFAULT_BULK_OPTIONS);
-  const preview = useMemo(() => parseBulkInput(input), [input]);
+  const preview = useMemo(() => parseBulkInput(input, maxTargets), [input, maxTargets]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmit, setLastSubmit] = useState<StartBulkResponse | null>(null);

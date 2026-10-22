@@ -2,7 +2,7 @@
 // time; per-service rate limits (e.g. VirusTotal 4/min) make them wait inside
 // the key resolver, and daily quotas make sources skip. Bulk lookups only use
 // the job owner's own keys. Unfinished jobs resume after a server restart.
-import { findUserById } from '../auth/users';
+import { countLookup, findUserById } from '../auth/users';
 import { analyzeTarget, createAnalysisContext } from '../analysis';
 import { preloadFeeds } from '../blocklists/feeds';
 import { getCachedResult, pruneCache, putCachedResult } from './cache';
@@ -65,6 +65,7 @@ async function runJob(jobId: string): Promise<void> {
           { isValid: true, type: item.type, normalizedInput: item.target },
           createAnalysisContext(user, 'bulk', { freeSourcesOnly: options.freeSourcesOnly })
         );
+        countLookup(user.id);
         putCachedResult(user.id, target, result, options.freeSourcesOnly);
         completeItem(jobId, item.idx, result, false);
       } catch (error) {

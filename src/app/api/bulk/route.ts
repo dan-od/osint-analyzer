@@ -1,4 +1,4 @@
-import { BULK_MAX_TARGETS, parseBulkInput } from '@/lib/bulk-input';
+import { parseBulkInput } from '@/lib/bulk-input';
 import { createJob, hasActiveJob, listJobs } from '@/lib/server/bulk/jobs';
 import { resumeBulkJobs, startJob } from '@/lib/server/bulk/worker';
 import { checkSameOrigin, jsonError, jsonOk, readJson, requireApiUser } from '@/lib/server/http';
@@ -38,10 +38,12 @@ export async function POST(request: Request) {
     return jsonError('You already have a bulk job running. Wait for it to finish, or cancel it first.', 409);
   }
 
-  const parsed = parseBulkInput(input);
+  // New accounts get a smaller per-job cap until an admin raises it
+  const maxTargets = auth.user.bulkCap;
+  const parsed = parseBulkInput(input, maxTargets);
   const internal: BulkTarget[] = parsed.internal.map((target) => ({ target, type: 'ip' }));
   // With the option off, internal IPs are queued; they still never leave the server
-  const targets = options.skipInternal ? parsed.targets : [...parsed.targets, ...internal].slice(0, BULK_MAX_TARGETS);
+  const targets = options.skipInternal ? parsed.targets : [...parsed.targets, ...internal].slice(0, maxTargets);
   if (targets.length === 0 && internal.length === 0) {
     return jsonError('No IP addresses or domains found in the input', 400);
   }

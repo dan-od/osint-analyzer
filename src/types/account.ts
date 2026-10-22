@@ -1,10 +1,27 @@
 // Account types shared by the server and the browser
 
+export type UserRole = 'user' | 'admin';
+
 export interface PublicUser {
   id: number;
   name: string;
   email: string;
   createdAt: string;
+  role: UserRole;
+  /** Most targets this account can queue in one bulk job */
+  bulkCap: number;
+}
+
+/** A row on the /admin accounts page */
+export interface AdminUserRow extends PublicUser {
+  disabled: boolean;
+  /** null: never seen since the column was added */
+  lastActiveAt: string | null;
+  lookups: number;
+  /** The cap an admin set, or null for the new-account default */
+  customBulkCap: number | null;
+  /** False for a password signup that hasn't confirmed its email yet */
+  emailVerified: boolean;
 }
 
 export interface ApiKeyStatus {

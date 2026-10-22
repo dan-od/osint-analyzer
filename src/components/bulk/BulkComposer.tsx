@@ -18,11 +18,14 @@ interface BulkComposerProps {
   submitting: boolean;
   blockedReason: string | null;
   error: string | null;
+  /** This account's per-job cap */
+  maxTargets: number;
 }
 
 export default function BulkComposer(props: BulkComposerProps) {
-  const { value, onChange, name, onFile, onSubmit, preview, options, onOption, submitting, blockedReason, error } = props;
+  const { value, onChange, name, onFile, onSubmit, preview, options, onOption, submitting, blockedReason, error, maxTargets } = props;
   const fileRef = useRef<HTMLInputElement>(null);
+  const example = Math.min(200, maxTargets);
   const [dragging, setDragging] = useState(false);
 
   const submit = (e: FormEvent) => {
@@ -42,7 +45,7 @@ export default function BulkComposer(props: BulkComposerProps) {
     preview.internal.length && `${preview.internal.length} internal`,
     preview.unsupported.length && `${preview.unsupported.length} not IP or domain`,
     preview.invalid.length && `${preview.invalid.length} unrecognised`,
-    preview.truncated && `${preview.truncated} over the ${BULK_MAX_TARGETS} limit`,
+    preview.truncated && `${preview.truncated} over your ${maxTargets} limit`,
   ].filter(Boolean);
 
   const check = (key: keyof BulkOptions, label: string, hint?: string) => (
@@ -87,8 +90,10 @@ export default function BulkComposer(props: BulkComposerProps) {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             spellCheck={false}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? 'list-error' : undefined}
             placeholder={'203.0.113.42\ncdn-assets-update.example\n203.0.113.77'}
-            className="box-border w-full resize-y rounded border border-line-strong bg-ground px-3 py-[10px] font-mono text-[14px] text-ink"
+            className="box-border w-full resize-y rounded border border-field bg-ground px-3 py-[10px] font-mono text-[14px] text-ink"
           />
           {value.trim() && (
             <p className="m-0 text-[13px] text-muted">
@@ -97,7 +102,7 @@ export default function BulkComposer(props: BulkComposerProps) {
               {ignored.length > 0 && `. Ignored: ${ignored.join(', ')}.`}
             </p>
           )}
-          {error && <FormMessage>{error}</FormMessage>}
+          {error && <FormMessage id="list-error">{error}</FormMessage>}
           {blockedReason && <p className="m-0 text-[13px] text-muted">{blockedReason}</p>}
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -126,14 +131,15 @@ export default function BulkComposer(props: BulkComposerProps) {
         </form>
       </div>
 
-      <div className="flex max-w-[360px] flex-[1_1_280px] flex-col gap-[10px] text-[14px]">
+      <div className="flex max-w-[360px] max-[720px]:max-w-none flex-[1_1_280px] flex-col gap-[10px] text-[14px]">
         <span className="text-[13px] text-muted">Options</span>
         {check('skipInternal', 'Skip private and reserved IPs', '(10/8, 172.16/12, 192.168/16, loopback, CGNAT)')}
         {check('reuseCache', 'Reuse results from the last 24 hours')}
         {check('freeSourcesOnly', 'Free sources only', '(saves your VirusTotal quota)')}
         <p className="m-0 mt-[6px] text-[13px] text-muted">
-          Up to {BULK_MAX_TARGETS} targets per job, one running job per account. Rate limits are respected per key: 200 targets
-          with VirusTotal on takes about {minutesWithVirusTotal(200)} minutes; without it, about {minutesFreeOnly(200)}.
+          Up to {maxTargets} targets per job{maxTargets < BULK_MAX_TARGETS && ' on your account (an admin can raise it)'}, one running
+          job per account. Rate limits are respected per key: {example} targets with VirusTotal on takes about{' '}
+          {minutesWithVirusTotal(example)} minutes; without it, about {minutesFreeOnly(example)}.
         </p>
       </div>
     </div>

@@ -7,8 +7,8 @@ import { MarkBleed } from '@/components/decor';
 import { FormMessage } from '@/components/auth/AuthCard';
 import { useBulk } from '@/hooks/useBulk';
 
-export default function BulkClient({ initialJobId }: { initialJobId: string | null }) {
-  const bulk = useBulk(initialJobId);
+export default function BulkClient({ initialJobId, maxTargets }: { initialJobId: string | null; maxTargets: number }) {
+  const bulk = useBulk(initialJobId, maxTargets);
   const { input, selection, job } = bulk;
   const earlier = bulk.jobs.filter((j) => j.id !== job?.id).slice(0, 5);
 
@@ -28,6 +28,7 @@ export default function BulkClient({ initialJobId }: { initialJobId: string | nu
           submitting={input.submitting}
           blockedReason={bulk.jobBusy ? 'A job is still running. Start another when it finishes, or cancel it.' : null}
           error={input.submitError}
+          maxTargets={maxTargets}
         />
       </section>
 

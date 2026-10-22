@@ -1,9 +1,11 @@
 // What a logged-in user checked recently: the target and its type, nothing
 // else. Kept for 7 days so the dashboard can list it.
 import { getDb } from './db';
+import { DAY_MS, RETENTION } from '@/lib/retention';
+import { countLookup } from './auth/users';
 import type { AnalysisType } from '@/types';
 
-const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+const KEEP_MS = RETENTION.recentChecksDays * DAY_MS;
 
 export interface RecentCheck {
   target: string;
@@ -12,6 +14,7 @@ export interface RecentCheck {
 }
 
 export function recordCheck(userId: number, target: string, type: AnalysisType): void {
+  countLookup(userId);
   const db = getDb();
   const now = Date.now();
   db.prepare('DELETE FROM recent_checks WHERE checked_at < ?').run(now - KEEP_MS);

@@ -30,15 +30,29 @@ export function checkSameOrigin(request: Request): NextResponse | null {
   return jsonError('Cross-site request blocked', 403);
 }
 
-export function clientAddress(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+/**
+ * The visitor's address for rate limiting. Behind Cloudflare (tunnel) the
+ * real client is in CF-Connecting-IP; nginx's X-Real-IP would be the tunnel
+ * container, which would put every visitor in one shared bucket.
+ */
+export function clientAddress(request: Request | Headers): string {
+  const headers = request instanceof Headers ? request : request.headers;
+  const cf = headers.get('cf-connecting-ip')?.trim();
+  if (cf) return cf;
+  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded || headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
 /** Returns the user, or a 401 response for the handler to return. */
 export function requireApiUser(): { user: PublicUser } | { response: NextResponse } {
   const user = getCurrentUser();
   return user ? { user } : { response: jsonError('Please log in to continue', 401) };
+}
+
+/** Returns the admin, or a 404 (non-admins don't learn the route exists). */
+export function requireApiAdmin(): { user: PublicUser } | { response: NextResponse } {
+  const user = getCurrentUser();
+  return user?.role === 'admin' ? { user } : { response: jsonError('Not found', 404) };
 }
 
 export async function readJson<T>(request: Request): Promise<Partial<T> | null> {

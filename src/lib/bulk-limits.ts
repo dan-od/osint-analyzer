@@ -1,10 +1,10 @@
 // Numbers quoted on the bulk page and in the docs, derived from the code
-import { BULK_MAX_TARGETS } from './bulk-input';
+import { BULK_MAX_TARGETS, NEW_ACCOUNT_BULK_TARGETS } from './bulk-input';
 import { getService } from './services';
 
 /** Workers per job (lib/server/bulk/worker.ts) */
 export const BULK_WORKERS = 3;
-export { BULK_MAX_TARGETS };
+export { BULK_MAX_TARGETS, NEW_ACCOUNT_BULK_TARGETS };
 
 /**
  * Average seconds for one target with free sources only, measured on a
@@ -39,3 +39,14 @@ export const DNSBL_TIMEOUT_SECONDS = 2;
 
 /** Logged-out visitors share the server's keys, so single checks are capped per visitor */
 export const ANONYMOUS_CHECKS_PER_HOUR = 20;
+
+/** Signups are open to anyone, but capped per visitor address so accounts can't be farmed */
+export const SIGNUPS_PER_HOUR = 5;
+
+/** Wrong passwords allowed on one confirmation link before it locks */
+export const VERIFY_MAX_ATTEMPTS = 5;
+
+/** New confirmation links per address per hour */
+export const RESENDS_PER_HOUR = 3;
+/** New confirmation links per visitor address per hour, across all addresses */
+export const RESENDS_PER_HOUR_PER_IP = 10;

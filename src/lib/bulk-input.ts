@@ -8,7 +8,10 @@ import { validateInput } from './utils';
 import { internalIpReason, parseIp } from './ip';
 import type { BulkParseResult, BulkTarget } from '@/types/bulk';
 
+/** Most targets any job can take (admins, and accounts an admin has raised) */
 export const BULK_MAX_TARGETS = 500;
+/** Per-job cap for a new account until an admin raises it */
+export const NEW_ACCOUNT_BULK_TARGETS = 50;
 const KNOWN_COLUMNS = ['ip', 'domain', 'target', 'url'];
 
 /** Undo common IOC defanging: hxxp://, example[.]com, 1.2.3[.]4, [:] */
@@ -60,7 +63,10 @@ export function pickCsvColumn(text: string): CsvPick | null {
   return { values: lines.map((l) => splitCsvLine(l)[0] ?? ''), column: null };
 }
 
-export function parseBulkInput(text: string): BulkParseResult & { candidates: number; column: string | null; csv: boolean } {
+export function parseBulkInput(
+  text: string,
+  maxTargets: number = BULK_MAX_TARGETS
+): BulkParseResult & { candidates: number; column: string | null; csv: boolean } {
   const csv = pickCsvColumn(text);
   const raw = csv ? csv.values : text.split(/[\s,;"'|<>]+/);
   const tokens = raw.map((t) => refang(t.trim())).filter(Boolean);
@@ -96,7 +102,7 @@ export function parseBulkInput(text: string): BulkParseResult & { candidates: nu
       result.internal.push(target);
       continue;
     }
-    if (targets.length >= BULK_MAX_TARGETS) {
+    if (targets.length >= maxTargets) {
       result.truncated++;
       continue;
     }

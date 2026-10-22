@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 const BCRYPT_COST = 12;
-export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MIN_LENGTH = 12;
 // bcrypt silently ignores everything after 72 bytes, so reject longer input
 const PASSWORD_MAX_BYTES = 72;
 
