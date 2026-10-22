@@ -1,6 +1,11 @@
-// The confirmation email: a dark card like the site, the sweep logo inline
-// (CID), one orange button, and a plain-text part with the same content.
-import { LOGO_CID, LOGO_PNG_BASE64 } from './logo';
+// The confirmation email: a dark card like the site, the sweep logo, one
+// orange button, and a plain-text part with the same content. No attachments:
+// the logo is a remote image (/email-logo.png on MAIL_LINK_BASE).
+//
+// Many clients block remote images by default, so the header's name is live
+// text beside the logo, and the logo itself is decorative (alt=""). An alt of
+// "OSINT Analyzer" would be clipped to "OSINT" in the 48px image box, and read
+// twice next to the text.
 import type { MailMessage } from '../mail';
 
 export const VERIFICATION_SUBJECT = 'Confirm your email for OSINT Analyzer';
@@ -17,8 +22,10 @@ export function verificationEmail(opts: {
   link: string;
   hours: number;
   purpose: 'signup' | 'email-change';
+  /** Absolute URL of the 96px logo, e.g. https://osint.okoro.me/email-logo.png */
+  logoUrl: string;
 }): MailMessage {
-  const { to, name, link, hours, purpose } = opts;
+  const { to, name, link, hours, purpose, logoUrl } = opts;
   const lead =
     purpose === 'signup'
       ? 'Confirm your email address to finish creating your OSINT Analyzer account. You will be asked for the password you chose when you signed up.'
@@ -50,8 +57,8 @@ export function verificationEmail(opts: {
   <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:480px;background:#1A1E23;border:1px solid #2C3238;border-radius:4px;">
     <tr><td style="padding:28px 32px 0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td style="vertical-align:middle;"><img src="cid:${LOGO_CID}" width="40" height="40" alt="" style="display:block;border:0;border-radius:3px;"></td>
-        <td style="vertical-align:middle;padding-left:12px;font-family:${FONT};font-size:16px;font-weight:600;color:#E6E9EC;">OSINT Analyzer</td>
+        <td width="48" style="vertical-align:middle;width:48px;"><img src="${escape(logoUrl)}" width="48" height="48" alt="" style="display:block;width:48px;height:48px;border:0;border-radius:3px;background:#1A1E23;"></td>
+        <td style="vertical-align:middle;padding-left:12px;font-family:${FONT};font-size:17px;line-height:48px;font-weight:600;color:#E6E9EC;">OSINT Analyzer</td>
       </tr></table>
     </td></tr>
     <tr><td style="padding:24px 32px 8px;font-family:${FONT};">
@@ -80,11 +87,5 @@ export function verificationEmail(opts: {
 </body>
 </html>`;
 
-  return {
-    to,
-    subject: VERIFICATION_SUBJECT,
-    html,
-    text,
-    inline: [{ filename: 'osint-analyzer.png', contentBase64: LOGO_PNG_BASE64, contentId: LOGO_CID }],
-  };
+  return { to, subject: VERIFICATION_SUBJECT, html, text };
 }

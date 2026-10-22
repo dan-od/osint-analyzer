@@ -60,6 +60,9 @@ AUTH_URL=https://osint.okoro.me
 # Email confirmation (Resend). Without the key, links go to the container log.
 RESEND_API_KEY=
 MAIL_LINK_BASE=https://osint.okoro.me
+# Optional; these are the defaults. The From domain must be verified in Resend.
+MAIL_FROM="OSINT Analyzer <osint@mail.protechnetworks.org>"
+MAIL_REPLY_TO=support@protechnetworks.org
 
 # Sign-in buttons appear only when both values are set
 GOOGLE_CLIENT_ID=

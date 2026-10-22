@@ -3,6 +3,10 @@ import { Contact, LegalDoc, LegalSection, LegalTable, List, P } from '@/componen
 import { HOSTING, OPERATOR } from '@/lib/legal';
 import { RETENTION } from '@/lib/retention';
 import { ANONYMOUS_CHECKS_PER_HOUR, SIGNUPS_PER_HOUR } from '@/lib/bulk-limits';
+import { mailFromAddress } from '@/lib/server/mail';
+
+// Rendered per request: the sender address comes from the server's MAIL_FROM
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Privacy policy · OSINT Analyzer',
@@ -80,7 +84,7 @@ export default function PrivacyPage() {
             don&apos;t post anything or read anything else from those accounts.
           </li>
           <li>
-            <strong className="text-ink">Resend</strong> sends the confirmation emails (from osint@protechnetworks.org), so it
+            <strong className="text-ink">Resend</strong> sends the confirmation emails (from {mailFromAddress()}), so it
             receives your email address, your name and the message with its link, under its own privacy policy. Nothing else is
             sent by email: no newsletters or marketing.
           </li>

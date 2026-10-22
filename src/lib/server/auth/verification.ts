@@ -8,7 +8,7 @@
 // identifier is "signup:<userId>" or "email-change:<userId>:<new address>".
 import crypto from 'crypto';
 import { getDb } from '../db';
-import { mailConfigured, mailLinkBase, sendMail } from '../mail';
+import { mailConfigured, mailLinkBase, mailLogoUrl, sendMail } from '../mail';
 import { verificationEmail } from '../email/verification-email';
 import { RETENTION } from '@/lib/retention';
 import { VERIFY_MAX_ATTEMPTS } from '@/lib/bulk-limits';
@@ -160,7 +160,14 @@ export function pendingEmailChange(userId: number): string | null {
  */
 export async function sendVerification(purpose: VerificationPurpose, user: { id: number; name: string }, email: string): Promise<Delivery> {
   const link = `${mailLinkBase()}/verify-email?token=${createToken(purpose, user.id, email)}`;
-  const message = verificationEmail({ to: email, name: user.name, link, hours: RETENTION.verificationLinkHours, purpose });
+  const message = verificationEmail({
+    to: email,
+    name: user.name,
+    link,
+    hours: RETENTION.verificationLinkHours,
+    purpose,
+    logoUrl: mailLogoUrl(),
+  });
 
   if (!mailConfigured()) {
     console.warn(`[verification] RESEND_API_KEY is not set, so no email was sent. Link for ${email} (${purpose}): ${link}`);

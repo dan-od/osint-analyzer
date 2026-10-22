@@ -2,9 +2,26 @@
 // nothing is sent: callers write the link to the server log and say so in the
 // UI. Messages are transactional, so there is no List-Unsubscribe header.
 // Links in emails come from MAIL_LINK_BASE, never from the request's host.
+// Sender and reply-to come from MAIL_FROM and MAIL_REPLY_TO, so a new sending
+// domain is a config change, not a code change.
 
-export const MAIL_FROM = 'OSINT Analyzer <osint@protechnetworks.org>';
-export const MAIL_REPLY_TO = 'support@protechnetworks.org';
+const DEFAULT_FROM = 'OSINT Analyzer <osint@mail.protechnetworks.org>';
+const DEFAULT_REPLY_TO = 'support@protechnetworks.org';
+
+/** The From header, e.g. "OSINT Analyzer <osint@mail.protechnetworks.org>" */
+export function mailFrom(): string {
+  return process.env.MAIL_FROM?.trim() || DEFAULT_FROM;
+}
+
+export function mailReplyTo(): string {
+  return process.env.MAIL_REPLY_TO?.trim() || DEFAULT_REPLY_TO;
+}
+
+/** Just the address part of the From header (for the privacy policy) */
+export function mailFromAddress(): string {
+  const from = mailFrom();
+  return from.match(/<([^>]+)>/)?.[1] ?? from;
+}
 
 export function mailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY?.trim();
@@ -23,19 +40,16 @@ export function mailLinkBase(): string {
   return 'http://localhost:3000';
 }
 
-export interface InlineImage {
-  filename: string;
-  contentBase64: string;
-  /** Referenced from the HTML as src="cid:<contentId>" */
-  contentId: string;
-}
-
 export interface MailMessage {
   to: string;
   subject: string;
   html: string;
   text: string;
-  inline?: InlineImage[];
+}
+
+/** The email logo, served from public/email-logo.png */
+export function mailLogoUrl(): string {
+  return `${mailLinkBase()}/email-logo.png`;
 }
 
 export async function sendMail(message: MailMessage): Promise<void> {
@@ -43,17 +57,13 @@ export async function sendMail(message: MailMessage): Promise<void> {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY!.trim()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: MAIL_FROM,
+      from: mailFrom(),
       to: [message.to],
-      reply_to: MAIL_REPLY_TO,
+      reply_to: mailReplyTo(),
       subject: message.subject,
       html: message.html,
       text: message.text,
-      attachments: (message.inline ?? []).map((img) => ({
-        filename: img.filename,
-        content: img.contentBase64,
-        content_id: img.contentId,
-      })),
+      // No attachments: images are remote (see email/verification-email.ts)
     }),
     signal: AbortSignal.timeout(15000),
   });
