@@ -7,14 +7,20 @@ Every push to `main` (or **Actions → Deploy OSINT Analyzer → Run workflow**)
 2. The runner joins the tailnet (Tailscale OAuth, `tag:ci`).
 3. `rsync --delete` of the repo to `/opt/docker-homelab/sites/osint/`
    (without `node_modules`, `.next`, `.git`, `.env*`, `data`, `design`).
-4. On the server, in `/opt/docker-homelab`:
-   - `docker compose config -q` (bad YAML stops here)
-   - a backup of the database, taken from the running container
-   - the running image tagged `osint-analyzer:previous`
-   - `docker compose build osint`, then `docker compose up -d --no-deps osint`
-   - wait up to 60 s for `http://127.0.0.1:3000/api/health` inside the container; on
-     failure the job prints the last 50 log lines and fails
-   - `docker image prune -f`
+4. On the server, in `/opt/docker-homelab`, in this order:
+   1. `docker compose config -q` (bad YAML stops here)
+   2. `docker compose build osint` (the old container keeps serving)
+   3. **Backup** with the newly built image, in a one-off container that has the service's
+      volume and env: `docker compose run --rm --no-deps -T osint node - < sites/osint/scripts/backup-db.cjs`.
+      It writes `data/backups/osint-<UTC time>.db` and keeps the newest 5.
+      - No database yet (first deploy): it logs "no database yet, nothing to back up" and the deploy carries on.
+      - A database that can't be backed up: the deploy **stops here**. Nothing is swapped and the old container keeps running.
+   4. The image the running container uses is tagged `osint-analyzer:previous` (by image id,
+      so it works whatever compose names the image). Skipped when nothing is running.
+   5. `docker compose up -d --no-deps osint`
+   6. Wait up to 60 s for `http://127.0.0.1:3000/api/health` inside the container. On
+      failure the job prints the last 50 log lines and fails. Then `docker image prune -f`
+      and `docker compose ps osint`.
 
 Only the `osint` service is ever built or restarted. Nothing runs `docker compose down`.
 Two deploys never overlap (`concurrency: deploy-osint`); a newer one waits.
@@ -75,7 +81,7 @@ In `/opt/docker-homelab/docker-compose.yml`:
 services:
   osint:
     build: ./sites/osint
-    image: osint-analyzer:latest          # the workflow tags this as :previous before each build
+    image: osint-analyzer:latest          # a fixed name makes rollback a one-liner (see below)
     container_name: osint-analyzer
     restart: unless-stopped
     env_file: ./sites/osint/.env.production
@@ -110,6 +116,12 @@ anything written since.
 
 ## Rolling back
 
+`osint-analyzer:previous` is always the image that was running before the latest deploy.
+Point the name the service runs under back at it, then recreate the container. With
+`image: osint-analyzer:latest` on the service that name is `osint-analyzer:latest`; without an
+`image:` line compose calls it `<project>-osint` (here probably `docker-homelab-osint:latest`;
+`docker images | grep osint` shows it).
+
 **Code only** (the database didn't change, or the old code can read it):
 
 ```sh
@@ -119,7 +131,6 @@ docker compose up -d --no-deps osint
 ```
 
 Then `git revert` the bad commit and push, so the next deploy doesn't bring it back.
-`:previous` is always the version that was live before the latest deploy.
 
 **Code and database:**
 
@@ -135,7 +146,14 @@ docker compose up -d --no-deps osint
 ```
 
 Backups are named by UTC time (`osint-2026-10-22T16-45-35-933Z.db`) and taken just before each
-deploy's build, so the newest one before the bad deploy's time is the state it started from.
+deploy's swap, so the newest one before the bad deploy's time is the state it started from.
+
+### The first deploy
+
+The container running before the first deploy is a pre-accounts build (Node 18, no SQLite).
+That deploy finds no database, so no backup is taken; the new container creates `osint.db`
+when it starts (the health check triggers it). `:previous` is that old pre-accounts image.
+Rolling back to it is possible, but it has no accounts at all.
 
 ## Checking a deploy by hand
 
