@@ -3,9 +3,15 @@ import { MarkBleed } from '@/components/decor';
 import { requireUser } from '@/lib/server/auth/session';
 import { PASSWORD_MIN_LENGTH } from '@/lib/server/auth/password';
 import SettingsClient from './SettingsClient';
+import { getPasswordHash, linkedAccounts } from '@/lib/server/auth/users';
+import { enabledOAuthProviders } from '@/lib/server/auth/providers';
+import { pendingEmailChange } from '@/lib/server/auth/verification';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Settings · OSINT Analyzer' };
+export const metadata = {
+  title: 'Settings · OSINT Analyzer',
+  description: 'Your API keys, account details, sign-in methods and account deletion.',
+};
 
 export default function SettingsPage() {
   const user = requireUser('/settings');
@@ -21,7 +27,12 @@ export default function SettingsPage() {
           </p>
         </div>
       </section>
-      <SettingsClient user={user} minPasswordLength={PASSWORD_MIN_LENGTH} />
+      <SettingsClient
+        user={user}
+        minPasswordLength={PASSWORD_MIN_LENGTH}
+        pendingEmail={pendingEmailChange(user.id)}
+        signIn={{ hasPassword: !!getPasswordHash(user.id), providers: enabledOAuthProviders(), linked: linkedAccounts(user.id) }}
+      />
     </PageChrome>
   );
 }

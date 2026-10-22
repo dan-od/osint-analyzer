@@ -1,0 +1,72 @@
+// Auth.js tables, read and written by @auth/prisma-adapter (src/auth.ts).
+//
+// The tables themselves are created and migrated by src/lib/server/db.ts,
+// which owns the SQLite file (better-sqlite3), so there are no Prisma
+// migrations. These models map onto that schema: user ids stay INTEGER so
+// existing rows in api_keys, bulk_jobs etc. keep pointing at the same user.
+// Columns the adapter doesn't need (role, password_hash, bulk_cap, …) are
+// left out of the User model; SQLite fills their defaults.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  // Overridden at runtime with the absolute path from DATABASE_URL (src/lib/server/prisma.ts)
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String
+  // In the database this is unique among confirmed accounts only (a partial
+  // index); src/auth.ts looks users up by email itself, never via Prisma.
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int     @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  // sha256 of the cookie value; the raw token only lives in the cookie
+  sessionToken String   @unique @map("session_token")
+  userId       Int      @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}

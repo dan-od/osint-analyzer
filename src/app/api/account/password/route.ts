@@ -1,11 +1,12 @@
 import { hashPassword, validatePassword, verifyPassword } from '@/lib/server/auth/password';
-import { getPasswordHash, setPasswordHash } from '@/lib/server/auth/users';
+import { getPasswordHash, removePassword, setPasswordHash, signInMethodCount } from '@/lib/server/auth/users';
 import { deleteOtherSessions, getSessionToken } from '@/lib/server/auth/session';
 import { checkSameOrigin, jsonError, jsonOk, readJson, requireApiUser } from '@/lib/server/http';
 import { hitLimit } from '@/lib/server/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
+/** Change the password, or set one on an account that only used Google/GitHub */
 export async function POST(request: Request) {
   const blocked = checkSameOrigin(request);
   if (blocked) return blocked;
@@ -20,11 +21,27 @@ export async function POST(request: Request) {
   const next = typeof body?.next === 'string' ? body.next : '';
 
   const hash = getPasswordHash(auth.user.id);
-  if (!hash || !(await verifyPassword(current, hash))) return jsonError('Your current password is not right', 403);
+  if (hash && !(await verifyPassword(current, hash))) return jsonError('Your current password is not right', 403);
   const problem = validatePassword(next);
   if (problem) return jsonError(problem, 400);
 
   setPasswordHash(auth.user.id, await hashPassword(next));
   deleteOtherSessions(auth.user.id, getSessionToken());
-  return jsonOk({ changed: true });
+  return jsonOk({ changed: true, created: !hash });
+}
+
+/** Remove the password; only allowed while a Google/GitHub account is linked */
+export async function DELETE(request: Request) {
+  const blocked = checkSameOrigin(request);
+  if (blocked) return blocked;
+  const auth = requireApiUser();
+  if ('response' in auth) return auth.response;
+
+  if (!getPasswordHash(auth.user.id)) return jsonError('There is no password on this account', 404);
+  if (signInMethodCount(auth.user.id) <= 1) {
+    return jsonError('Your password is your only way to sign in. Link Google or GitHub first.', 409);
+  }
+  removePassword(auth.user.id);
+  deleteOtherSessions(auth.user.id, getSessionToken());
+  return jsonOk({ removed: true });
 }

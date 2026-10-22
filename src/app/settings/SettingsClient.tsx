@@ -2,12 +2,24 @@
 
 import KeyRow, { KEY_GRID } from '@/components/settings/KeyRow';
 import AccountSection from '@/components/settings/AccountSection';
+import SignInMethods, { type SignInMethodsProps } from '@/components/settings/SignInMethods';
+import DeleteAccount from '@/components/settings/DeleteAccount';
 import { FormMessage } from '@/components/auth/AuthCard';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { SERVICES } from '@/lib/services';
 import type { PublicUser } from '@/types/account';
 
-export default function SettingsClient({ user, minPasswordLength }: { user: PublicUser; minPasswordLength: number }) {
+export default function SettingsClient({
+  user,
+  minPasswordLength,
+  pendingEmail,
+  signIn,
+}: {
+  user: PublicUser;
+  minPasswordLength: number;
+  pendingEmail: string | null;
+  signIn: SignInMethodsProps;
+}) {
   const { overview, loadError, rowState, saveKey, removeKey } = useApiKeys();
   const setCount = overview?.keys.filter((k) => k.maskedKey).length ?? 0;
 
@@ -59,7 +71,9 @@ export default function SettingsClient({ user, minPasswordLength }: { user: Publ
         </p>
       </section>
 
-      <AccountSection user={user} minPasswordLength={minPasswordLength} />
+      <AccountSection user={user} minPasswordLength={minPasswordLength} hasPassword={signIn.hasPassword} pendingEmail={pendingEmail} />
+      <SignInMethods {...signIn} />
+      <DeleteAccount email={user.email} />
     </div>
   );
 }
