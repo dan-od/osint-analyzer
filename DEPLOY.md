@@ -9,14 +9,16 @@ Every push to `main` (or **Actions → Deploy OSINT Analyzer → Run workflow**)
    (without `node_modules`, `.next`, `.git`, `.env*`, `data`, `design`).
 4. On the server, in `/opt/docker-homelab`, in this order:
    1. `docker compose config -q` (bad YAML stops here)
-   2. `docker compose build osint` (the old container keeps serving)
-   3. **Backup** with the newly built image, in a one-off container that has the service's
+   2. The image the running container uses is tagged `osint-analyzer:previous`, before the
+      build moves `osint-analyzer:latest`. Skipped when nothing is running. If the image
+      can't be tagged, the job logs a warning and carries on; `:previous` then stays
+      as it was, and rolling back that deploy means `git revert` and redeploy.
+   3. `docker compose build osint` (the old container keeps serving)
+   4. **Backup** with the newly built image, in a one-off container that has the service's
       volume and env: `docker compose run --rm --no-deps -T osint node - < sites/osint/scripts/backup-db.cjs`.
       It writes `data/backups/osint-<UTC time>.db` and keeps the newest 5.
       - No database yet (first deploy): it logs "no database yet, nothing to back up" and the deploy carries on.
       - A database that can't be backed up: the deploy **stops here**. Nothing is swapped and the old container keeps running.
-   4. The image the running container uses is tagged `osint-analyzer:previous` (by image id,
-      so it works whatever compose names the image). Skipped when nothing is running.
    5. `docker compose up -d --no-deps osint`
    6. Wait up to 60 s for `http://127.0.0.1:3000/api/health` inside the container. On
       failure the job prints the last 50 log lines and fails. Then `docker image prune -f`

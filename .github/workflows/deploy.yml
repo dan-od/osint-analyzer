@@ -60,33 +60,38 @@ jobs:
           # 1. Bad compose YAML stops here, before anything is built or restarted
           docker compose config -q
 
-          # Note the running container's image now: the build below moves the
-          # service's tag to the new image. Empty if osint isn't running.
+          # 2. Keep the image osint is running as :previous for rollback. Done
+          #    BEFORE the build, while that image still has its tag: once the
+          #    build moves osint-analyzer:latest, an untagged image may not be
+          #    findable by id (containerd image store). Tagged, so the prune at
+          #    the end leaves it alone. A failure here only costs the one-line
+          #    rollback, never the deploy.
           running_cid="$(docker compose ps -q osint 2>/dev/null || true)"
-          running_image=""
-          if [ -n "$running_cid" ]; then
-            running_image="$(docker inspect --format '{{.Image}}' "$running_cid")"
+          if [ -z "$running_cid" ]; then
+            echo "No running osint container: no previous image to keep"
+          else
+            running_image="$(docker inspect --format '{{.Image}}' "$running_cid" 2>/dev/null || true)"
+            latest_image="$(docker image inspect --format '{{.Id}}' osint-analyzer:latest 2>/dev/null || true)"
+            if [ -n "$running_image" ] && [ "$running_image" = "$latest_image" ] \
+                && docker tag osint-analyzer:latest osint-analyzer:previous 2>/dev/null; then
+              echo "Tagged the running image (osint-analyzer:latest, ${running_image:7:12}) as osint-analyzer:previous"
+            elif [ -n "$running_image" ] && docker tag "$running_image" osint-analyzer:previous 2>/dev/null; then
+              echo "Tagged the running image ${running_image:7:12} as osint-analyzer:previous"
+            else
+              echo "::warning::Could not tag the running image (${running_image:-unknown}) as osint-analyzer:previous; osint-analyzer:previous is unchanged. Rollback for this deploy: git revert and redeploy (database backup below)."
+            fi
           fi
 
-          # 2. Build the new image; the old container keeps serving meanwhile
+          # 3. Build the new image; the old container keeps serving meanwhile
           docker compose build osint
 
-          # 3. Back up the database with the NEW image (a one-off container with
+          # 4. Back up the database with the NEW image (a one-off container with
           #    the service's volumes and env). No database yet: logged, carry on.
           #    A database that can't be backed up: the script exits non-zero and
           #    set -e stops the deploy here, before anything is swapped.
           #    stdin is the backup script, not the rest of this one.
           echo "Backing up the database from the new image"
           docker compose run --rm --no-deps -T osint node - < sites/osint/scripts/backup-db.cjs
-
-          # 4. Keep the image that was running as :previous for rollback
-          #    (tagged, so the prune below leaves it alone)
-          if [ -n "$running_image" ]; then
-            docker tag "$running_image" osint-analyzer:previous
-            echo "Tagged the running image ${running_image:7:12} as osint-analyzer:previous"
-          else
-            echo "No running osint container: no previous image to keep"
-          fi
 
           # 5. Recreate osint only; nginx, cloudflared and everything else untouched
           docker compose up -d --no-deps osint
