@@ -5,7 +5,6 @@ import type { AnalysisResult, BlocklistCoverage, BlocklistSourceResult, Indicato
 import {
   performDnsLookup,
   checkAbuseIPDB,
-  checkWhois,
   checkVirusTotal,
   checkGoogleSafeBrowsing,
   checkOpenPhish,
@@ -15,7 +14,6 @@ import {
   type DnsResult,
   type GoogleSafeBrowsingResult,
   type VirusTotalResult,
-  type WhoisResult,
 } from '@/lib/osint-apis';
 import { internalIpReason, parseIp } from '@/lib/ip';
 import { API_BLOCKLIST_TRUST, IP_DNSBL_META } from '@/lib/blocklist-meta';
@@ -33,7 +31,8 @@ import type { AnalysisContext } from './context';
 import { TaskRunner } from './tasks';
 import { buildResult } from './scoring';
 import { pivotsFor, withFacts } from './facts';
-import { domainAgeIndicator } from './email';
+import { lookupDomain, type DomainRegistration } from '@/lib/rdap';
+import { domainAgeFindings, registrationDetail, registrationUnavailable } from './domain-age';
 import { abuseIpdbDetail, abuseIpdbIndicator, virusTotalDetail, virusTotalIndicator } from './shared';
 
 /** The first public A record, if any */
@@ -79,26 +78,20 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
     },
   });
 
-  runner.add<WhoisResult>({
+  runner.add<DomainRegistration>({
     id: 'whois',
     label: 'Domain age',
-    source: 'WHOIS',
-    serverKeyEnv: 'WHOISXML_API_KEY',
-    // WhoisXML only has a shared server key with a small free quota; bulk jobs would burn through it
-    skip: ctx.mode === 'bulk' ? 'Not run in bulk jobs (shared WHOIS quota).' : undefined,
-    run: () => checkWhois(domain),
-    build: (whois, out) => {
-      out.indicators.push(domainAgeIndicator(whois));
-      out.details.whois = {
-        title: `WHOIS, ${domain}`,
-        data: {
-          registrar: whois.registrar || 'unknown',
-          created: whois.creationDate?.slice(0, 10) || 'unknown',
-          expires: whois.expirationDate?.slice(0, 10) || 'unknown',
-          age: whois.domainAge !== null ? `${whois.domainAge} days` : 'unknown',
-        },
-        status: whois.isNewDomain ? 'warning' : 'pass',
-      };
+    source: 'RDAP',
+    // IANA bootstrap + registry RDAP, then rdap.org, then port-43 WHOIS: up to 4 x 5 s
+    timeoutMs: 25_000,
+    run: () => lookupDomain(domain),
+    build: (reg, out) => {
+      out.indicators.push(...domainAgeFindings(reg));
+      out.details.whois = registrationDetail(domain, reg);
+    },
+    onEmpty: (out) => {
+      out.answered = false;
+      out.indicators.push(registrationUnavailable());
     },
   });
 

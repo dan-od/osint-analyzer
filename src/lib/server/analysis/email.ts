@@ -5,7 +5,6 @@ import type { AnalysisResult, Indicator } from '@/types';
 import {
   performDnsLookup,
   checkEmailRep,
-  checkWhois,
   verifyEmailHunter,
   checkIPQSEmail,
   checkHaveIBeenPwned,
@@ -14,7 +13,6 @@ import {
   hasSuspiciousTLD,
   type DnsResult,
   type EmailRepResult,
-  type WhoisResult,
   type IPQSEmailResult,
   type HIBPResult,
 } from '@/lib/osint-apis';
@@ -25,6 +23,8 @@ import type { AnalysisContext } from './context';
 import { TaskRunner } from './tasks';
 import { buildResult } from './scoring';
 import { pivotsFor, withFacts } from './facts';
+import { lookupDomain, type DomainRegistration } from '@/lib/rdap';
+import { domainAgeFindings, registrationDetail, registrationUnavailable } from './domain-age';
 
 type HunterResult = NonNullable<Awaited<ReturnType<typeof verifyEmailHunter>>>;
 
@@ -178,23 +178,19 @@ export async function analyzeEmail(email: string, ctx: AnalysisContext): Promise
     },
   });
 
-  runner.add<WhoisResult>({
+  runner.add<DomainRegistration>({
     id: 'whois',
     label: 'Domain age',
-    source: 'WHOIS',
-    serverKeyEnv: 'WHOISXML_API_KEY',
-    run: () => checkWhois(domain),
-    build: (whois, out) => {
-      out.indicators.push(domainAgeIndicator(whois));
-      out.details.whois = {
-        title: `WHOIS, ${domain}`,
-        data: {
-          registrar: whois.registrar || 'unknown',
-          created: whois.creationDate?.slice(0, 10) || 'unknown',
-          age: whois.domainAge !== null ? `${whois.domainAge} days` : 'unknown',
-        },
-        status: whois.isNewDomain ? 'warning' : 'pass',
-      };
+    source: 'RDAP',
+    timeoutMs: 25_000,
+    run: () => lookupDomain(domain),
+    build: (reg, out) => {
+      out.indicators.push(...domainAgeFindings(reg));
+      out.details.whois = registrationDetail(domain, reg);
+    },
+    onEmpty: (out) => {
+      out.answered = false;
+      out.indicators.push(registrationUnavailable());
     },
   });
 
@@ -353,22 +349,4 @@ export async function analyzeEmail(email: string, ctx: AnalysisContext): Promise
     { ...result, pivots: pivotsFor('email', email) },
     { abuseScore: null, vtDetections: null, proxyType: null, country: null }
   );
-}
-
-export function domainAgeIndicator(whois: WhoisResult): Indicator {
-  const days = whois.domainAge;
-  const years = days !== null ? Math.floor(days / 365) : null;
-  return {
-    id: 'domain-age',
-    name: 'Domain age',
-    status: whois.isNewDomain ? 'warning' : days === null ? 'unknown' : 'pass',
-    description:
-      days === null
-        ? 'Registration date not published.'
-        : whois.isNewDomain
-          ? `Registered ${days.toLocaleString('en-US')} days ago. New domains are common in scams.`
-          : `Registered ${days.toLocaleString('en-US')} days ago${years ? ` (about ${years} year${years === 1 ? '' : 's'})` : ''}. Not a throwaway domain.`,
-    severity: whois.isNewDomain ? 'high' : 'low',
-    source: 'WHOIS',
-  };
 }

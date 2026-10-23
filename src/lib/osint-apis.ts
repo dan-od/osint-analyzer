@@ -16,18 +16,6 @@ export interface DnsResult {
   hasDmarc: boolean;
 }
 
-export interface WhoisResult {
-  domainName: string;
-  registrar: string | null;
-  creationDate: string | null;
-  expirationDate: string | null;
-  updatedDate: string | null;
-  status: string[];
-  nameServers: string[];
-  domainAge: number | null; // in days
-  isNewDomain: boolean;
-}
-
 export interface AbuseIPDBResult {
   ipAddress: string;
   isPublic: boolean;
@@ -346,83 +334,6 @@ export async function checkEmailRep(email: string): Promise<EmailRepResult | nul
     };
   } catch (error) {
     throw asUnavailable('EmailRep', error);
-  }
-}
-
-// ============================================
-// WHOISXML API
-// ============================================
-
-// A refused key or empty balance stays that way, so stop calling for a while
-const whoisCooldown = new Cooldown(10 * 60 * 1000);
-
-/**
- * WhoisXML explains a refusal in the body, e.g. 401
- * {"ErrorMessage":{"errorCode":"AUTHENTICATE_05","msg":"no active subscription"}}
- * when the key is fine but the free credits are used up.
- */
-function whoisRefusalReason(body: string): string {
-  if (/subscription|credit|balance|quota|limit/i.test(body)) {
-    return 'WHOIS unavailable: the WhoisXML account has no credits left (no active subscription).';
-  }
-  if (/api ?key|apikey|authenticat|invalid key/i.test(body)) {
-    return 'WHOIS unavailable: WhoisXML rejected the API key.';
-  }
-  return 'WHOIS unavailable: WhoisXML refused the request (key rejected or out of credits).';
-}
-
-export async function checkWhois(domain: string): Promise<WhoisResult | null> {
-  // Trimmed: a stray space or \r from the env file would make every call a 401
-  const apiKey = process.env.WHOISXML_API_KEY?.trim();
-  if (!apiKey) throw new SourceUnavailable('WHOIS unavailable: no WhoisXML key on this server.');
-  whoisCooldown.check();
-
-  try {
-    const response = await fetch(
-      `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${encodeURIComponent(apiKey)}&domainName=${encodeURIComponent(domain)}&outputFormat=JSON`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-      }
-    );
-
-    if (response.status === 401 || response.status === 403) {
-      const detail = await responseDetail(response, apiKey);
-      throw whoisCooldown.trip(new SourceUnavailable(whoisRefusalReason(detail), detail));
-    }
-    if (!response.ok) throw await unavailableResponse('WHOIS', response, { secret: apiKey });
-
-    const data = await response.json();
-    // Some errors come back as 200 with an ErrorMessage instead of a record
-    if (data.ErrorMessage) {
-      throw new SourceUnavailable(
-        'WHOIS unavailable: WhoisXML returned an error.',
-        JSON.stringify(data.ErrorMessage).split(apiKey).join('[key]')
-      );
-    }
-    const record = data.WhoisRecord;
-
-    if (!record) return null;
-
-    const creationDate = record.createdDate || record.registryData?.createdDate;
-    const domainAge = creationDate 
-      ? Math.floor((Date.now() - new Date(creationDate).getTime()) / (1000 * 60 * 60 * 24))
-      : null;
-
-    return {
-      domainName: record.domainName,
-      registrar: record.registrarName || record.registryData?.registrarName || null,
-      creationDate: creationDate || null,
-      expirationDate: record.expiresDate || record.registryData?.expiresDate || null,
-      updatedDate: record.updatedDate || record.registryData?.updatedDate || null,
-      status: record.status ? (Array.isArray(record.status) ? record.status : [record.status]) : [],
-      nameServers: record.nameServers?.hostNames || [],
-      domainAge,
-      isNewDomain: domainAge !== null && domainAge < 365,
-    };
-  } catch (error) {
-    throw asUnavailable('WHOIS', error);
   }
 }
 

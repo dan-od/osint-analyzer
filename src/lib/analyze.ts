@@ -10,7 +10,6 @@ import {
   performDnsLookup,
   checkAbuseIPDB,
   checkEmailRep,
-  checkWhois,
   checkPhone,
   checkVirusTotal,
   checkBitcoinWallet,
@@ -18,6 +17,7 @@ import {
   verifyEmailHunter,
   CryptoResult,
 } from './osint-apis';
+import { lookupDomain } from './rdap';
 
 // ============================================
 // EMAIL ANALYSIS
@@ -174,17 +174,18 @@ async function analyzeEmail(email: string): Promise<AnalysisResult> {
   }
 
   // 4. WHOIS lookup for domain age
-  const whoisResult = await checkWhois(domain);
+  const whoisResult = await lookupDomain(domain);
+  const isNewDomain = whoisResult?.ageDays != null && whoisResult.ageDays < 365;
   
   if (whoisResult) {
     indicators.push({
       id: 'domain-age',
       name: 'Domain Age',
-      status: whoisResult.isNewDomain ? 'warning' : 'pass',
-      description: whoisResult.domainAge 
-        ? `Domain is ${whoisResult.domainAge} days old${whoisResult.isNewDomain ? ' (newly registered)' : ''}`
+      status: isNewDomain ? 'warning' : 'pass',
+      description: whoisResult.ageDays 
+        ? `Domain is ${whoisResult.ageDays} days old${isNewDomain ? ' (newly registered)' : ''}`
         : 'Domain age unknown',
-      severity: whoisResult.isNewDomain ? 'high' : 'low',
+      severity: isNewDomain ? 'high' : 'low',
       source: 'WHOIS Lookup'
     });
 
@@ -192,12 +193,12 @@ async function analyzeEmail(email: string): Promise<AnalysisResult> {
       title: 'Domain WHOIS',
       data: {
         registrar: whoisResult.registrar || 'Unknown',
-        creationDate: whoisResult.creationDate || 'Unknown',
-        expirationDate: whoisResult.expirationDate || 'Unknown',
-        domainAge: whoisResult.domainAge ? `${whoisResult.domainAge} days` : 'Unknown',
-        nameServers: whoisResult.nameServers.join(', ') || 'Unknown',
+        creationDate: whoisResult.createdAt || 'Unknown',
+        expirationDate: whoisResult.expiresAt || 'Unknown',
+        domainAge: whoisResult.ageDays ? `${whoisResult.ageDays} days` : 'Unknown',
+        nameServers: whoisResult.nameservers.join(', ') || 'Unknown',
       },
-      status: whoisResult.isNewDomain ? 'warning' : 'pass'
+      status: isNewDomain ? 'warning' : 'pass'
     };
   }
 
@@ -250,17 +251,18 @@ async function analyzeDomain(domain: string): Promise<AnalysisResult> {
   };
 
   // 2. WHOIS Lookup
-  const whoisResult = await checkWhois(domain);
+  const whoisResult = await lookupDomain(domain);
+  const isNewDomain = whoisResult?.ageDays != null && whoisResult.ageDays < 365;
   
   if (whoisResult) {
     indicators.push({
       id: 'domain-age',
       name: 'Domain Age',
-      status: whoisResult.isNewDomain ? 'warning' : 'pass',
-      description: whoisResult.domainAge 
-        ? `Registered ${whoisResult.domainAge} days ago${whoisResult.isNewDomain ? ' - NEWLY REGISTERED' : ''}`
+      status: isNewDomain ? 'warning' : 'pass',
+      description: whoisResult.ageDays 
+        ? `Registered ${whoisResult.ageDays} days ago${isNewDomain ? ' - NEWLY REGISTERED' : ''}`
         : 'Domain age unknown',
-      severity: whoisResult.isNewDomain ? 'high' : 'low',
+      severity: isNewDomain ? 'high' : 'low',
       source: 'WHOIS Lookup'
     });
 
@@ -268,13 +270,13 @@ async function analyzeDomain(domain: string): Promise<AnalysisResult> {
       title: 'WHOIS Information',
       data: {
         registrar: whoisResult.registrar || 'Unknown',
-        creationDate: whoisResult.creationDate || 'Unknown',
-        expirationDate: whoisResult.expirationDate || 'Unknown',
-        updatedDate: whoisResult.updatedDate || 'Unknown',
-        domainAge: whoisResult.domainAge ? `${whoisResult.domainAge} days` : 'Unknown',
+        creationDate: whoisResult.createdAt || 'Unknown',
+        expirationDate: whoisResult.expiresAt || 'Unknown',
+        updatedDate: whoisResult.updatedAt || 'Unknown',
+        domainAge: whoisResult.ageDays ? `${whoisResult.ageDays} days` : 'Unknown',
         status: whoisResult.status.join(', ') || 'Unknown',
       },
-      status: whoisResult.isNewDomain ? 'warning' : 'pass'
+      status: isNewDomain ? 'warning' : 'pass'
     };
   }
 
