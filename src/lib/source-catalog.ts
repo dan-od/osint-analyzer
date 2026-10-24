@@ -25,7 +25,7 @@ export interface SourceEntry {
 
 const API_SOURCES: SourceEntry[] = [
   { id: 'google-dns', name: 'DNS (Google Public DNS)', kind: 'dns', types: ['email', 'domain'] },
-  { id: 'whois', name: 'WHOIS (WhoisXML)', kind: 'api', types: ['email', 'domain'], serverKeyEnv: 'WHOISXML_API_KEY' },
+  { id: 'whois', name: 'RDAP / WHOIS registration data', kind: 'api', types: ['email', 'domain'] },
   { id: 'virustotal', name: 'VirusTotal', kind: 'api', types: ['ip', 'domain'], service: 'virustotal' },
   { id: 'abuseipdb', name: 'AbuseIPDB', kind: 'api', types: ['ip', 'domain'], service: 'abuseipdb' },
   { id: 'greynoise', name: 'GreyNoise', kind: 'api', types: ['ip'], service: 'greynoise' },

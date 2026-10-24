@@ -1,0 +1,154 @@
+{
+  "entities" : [ {
+    "entities" : [ {
+      "handle" : "not applicable",
+      "objectClassName" : "entity",
+      "roles" : [ "abuse" ],
+      "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Abuse Contact" ], [ "kind", { }, "text", "individual" ], [ "role", { }, "text", "abuse" ], [ "adr", { }, "text", [ "", "", "", "", "", "", "" ] ], [ "tel", {
+        "type" : [ "voice" ]
+      }, "text", "" ], [ "email", { }, "text", "" ], [ "url", {
+        "type" : "home"
+      }, "uri", "http://www.cira.ca" ] ] ]
+    } ],
+    "handle" : "not applicable",
+    "objectClassName" : "entity",
+    "roles" : [ "registrar" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "CIRA Default Registrar" ], [ "kind", { }, "text", "org" ], [ "role", { }, "text", "registrar" ], [ "adr", { }, "text", [ "", "", "", "", "", "", "" ] ], [ "url", {
+      "type" : "home"
+    }, "uri", "http://www.cira.ca" ] ] ]
+  }, {
+    "handle" : "R101-CIRA",
+    "objectClassName" : "entity",
+    "roles" : [ "registrant" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Spencer Callaghan" ], [ "kind", { }, "text", "individual" ], [ "org", { }, "text", "Canadian Internet Registration Authority (NFP) / Autorité Canadienne pour les enregistrements Internet (OSBL)" ], [ "role", { }, "text", "registrant" ], [ "adr", {
+      "cc" : "CA"
+    }, "text", [ "", "", [ "319 McRae Avenue", "Suite 700" ], "Ottawa", "ON", "K1Z0B9", "" ] ], [ "tel", {
+      "type" : [ "voice" ]
+    }, "uri", "tel:+1.6132375335" ], [ "email", { }, "text", "domains@cira.ca" ], [ "url", {
+      "type" : "home"
+    }, "uri", "http://www.cira.ca" ] ] ]
+  }, {
+    "handle" : "C847977-CIRA",
+    "objectClassName" : "entity",
+    "roles" : [ "administrative" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Spencer Callaghan" ], [ "kind", { }, "text", "individual" ], [ "org", { }, "text", "CIRA" ], [ "role", { }, "text", "administrative" ], [ "adr", {
+      "cc" : "CA"
+    }, "text", [ "", "", [ "Canadian Internet Registration Authority", "319 McRae Avenue", "Suite 700" ], "Ottawa", "ON", "K1Z0B9", "" ] ], [ "tel", {
+      "type" : [ "voice" ]
+    }, "uri", "tel:+1.6132375335" ], [ "email", { }, "text", "domains@cira.ca" ], [ "url", {
+      "type" : "home"
+    }, "uri", "http://www.cira.ca" ] ] ]
+  }, {
+    "handle" : "C858875-CIRA",
+    "objectClassName" : "entity",
+    "roles" : [ "technical" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Address Reply To" ], [ "kind", { }, "text", "individual" ], [ "role", { }, "text", "technical" ], [ "adr", {
+      "cc" : "CA"
+    }, "text", [ "", "", [ "319 McRae Avenue", "Suite 700" ], "Ottawa", "ON", "K1Z0B9", "" ] ], [ "tel", {
+      "type" : [ "voice" ]
+    }, "uri", "tel:+1.6132375335" ], [ "email", { }, "text", "domains@cira.ca" ], [ "url", {
+      "type" : "home"
+    }, "uri", "http://www.cira.ca" ] ] ]
+  }, {
+    "objectClassName" : "entity",
+    "roles" : [ "billing" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "" ], [ "kind", { }, "text", "individual" ], [ "org", { }, "text", "" ], [ "role", { }, "text", "billing" ], [ "adr", { }, "text", [ "", "", "", "", "", "", "" ] ], [ "tel", {
+      "type" : [ "voice" ]
+    }, "text", "" ], [ "tel", {
+      "type" : [ "fax" ]
+    }, "text", "" ], [ "email", { }, "text", "" ], [ "url", {
+      "type" : "home"
+    }, "uri", "http://www.cira.ca" ] ] ]
+  } ],
+  "events" : [ {
+    "eventAction" : "registration",
+    "eventDate" : "1998-02-05T05:00:00Z"
+  }, {
+    "eventAction" : "expiration",
+    "eventDate" : "2050-02-05T05:00:00Z"
+  }, {
+    "eventAction" : "last changed",
+    "eventDate" : "2026-08-19T19:41:33Z"
+  }, {
+    "eventAction" : "last update of RDAP database",
+    "eventDate" : "2026-10-23T06:37:40Z"
+  } ],
+  "handle" : "D436-CIRA",
+  "ldhName" : "cira.ca",
+  "links" : [ {
+    "href" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca",
+    "rel" : "self",
+    "title" : "Authoritative URL for this resource",
+    "type" : "application/rdap+json",
+    "value" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca"
+  } ],
+  "nameservers" : [ {
+    "ldhName" : "ns1.d-zone.ca",
+    "objectClassName" : "nameserver"
+  }, {
+    "ldhName" : "ns2.d-zone.ca",
+    "objectClassName" : "nameserver"
+  }, {
+    "ldhName" : "ns3.cira.ca",
+    "objectClassName" : "nameserver"
+  }, {
+    "ldhName" : "ns4.cira.ca",
+    "objectClassName" : "nameserver"
+  } ],
+  "notices" : [ {
+    "description" : [ "For more information on domain status codes, please visit https://icann.org/epp" ],
+    "links" : [ {
+      "href" : "https://icann.org/epp",
+      "rel" : "glossary",
+      "type" : "text/html",
+      "value" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca"
+    } ],
+    "title" : "Status Codes"
+  }, {
+    "description" : [ "Service subject to Terms of Use." ],
+    "links" : [ {
+      "href" : "https://www.cira.ca/en/resources/documents/about/website-terms-use",
+      "rel" : "terms-of-service",
+      "type" : "text/html",
+      "value" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca"
+    } ],
+    "title" : "Terms of Service"
+  }, {
+    "description" : [ "URL of the ICANN RDDS Inaccuracy Complaint Form: https://icann.org/wicf" ],
+    "links" : [ {
+      "href" : "https://icann.org/wicf",
+      "rel" : "help",
+      "type" : "text/html",
+      "value" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca"
+    } ],
+    "title" : "RDDS Inaccuracy Complaint Form"
+  }, {
+    "description" : [ "\nUse of CIRA's WHOIS service is governed by the Terms of Use in its Legal\nNotice, available at https://www.cira.ca/en/resources/documents/about/website-terms-use\n\n(c) 2026 Canadian Internet Registration Authority, (http://www.cira.ca/)" ],
+    "links" : [ {
+      "href" : "https://www.cira.ca/en/resources/documents/about/website-terms-use",
+      "rel" : "help",
+      "type" : "text/html",
+      "value" : "https://rdap.ca.fury.ca/rdap/domain/cira.ca"
+    } ],
+    "title" : "Legal Notice"
+  } ],
+  "objectClassName" : "domain",
+  "port43" : "whois.ca.fury.ca",
+  "rdapConformance" : [ "icann_rdap_response_profile_1", "icann_rdap_technical_implementation_guide_1", "rdap_level_0" ],
+  "secureDNS" : {
+    "delegationSigned" : true,
+    "dsData" : [ {
+      "algorithm" : 8,
+      "digest" : "C5288A044C3B32D02E1F278869620E888B3729D874D7E6202C4C9D884FAB4F9C",
+      "digestType" : 2,
+      "events" : [ {
+        "eventAction" : "registration",
+        "eventDate" : "2019-10-21T14:20:35Z"
+      } ],
+      "keyTag" : 31720
+    } ]
+  },
+  "status" : [ "client transfer prohibited", "client update prohibited", "server delete prohibited", "server transfer prohibited", "server update prohibited" ],
+  "unicodeName" : "cira.ca",
+  "variants" : [ ]
+}

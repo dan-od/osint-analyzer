@@ -66,7 +66,7 @@ const INPUT_TYPES: { id: string; type: AnalysisType; title: string; example: str
     example: 'example-login.example',
     text: 'A bare domain or a full link. Links are checked by their host name.',
     looks: ['Registration date and age', 'DNS records', 'Phishing feeds', 'Malware feeds', 'Safe Browsing', 'Domain blocklists', 'Look-alike of a known brand', 'Suspicious TLD', 'Behind a CDN?'],
-    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, WHOIS, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
+    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, RDAP/WHOIS registration data, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
   },
   {
     id: 't-email',
@@ -75,7 +75,7 @@ const INPUT_TYPES: { id: string; type: AnalysisType; title: string; example: str
     example: 'ceo@pay-now.example',
     text: 'The address, and the domain it belongs to.',
     looks: ['Valid format', 'Mailbox exists', 'Fraud score', 'Disposable or honeypot', 'Known breaches', 'MX / SPF / DMARC', 'Domain age'],
-    sources: 'IPQualityScore, Hunter.io, Have I Been Pwned, EmailRep, DNS, WHOIS, Spamhaus DBL',
+    sources: 'IPQualityScore, Hunter.io, Have I Been Pwned, EmailRep, DNS, RDAP/WHOIS, Spamhaus DBL',
   },
   {
     id: 't-phone',
@@ -372,7 +372,7 @@ export default function DocsPage() {
                 {BULK_MAX_TARGETS} targets in about {minutesFreeOnly(BULK_MAX_TARGETS)} minutes.
               </li>
               <li>
-                Bulk jobs only use your own keys, and skip WHOIS (it runs on a shared server quota). Jobs can be paused, resumed or
+                Bulk jobs only use your own keys. Registration dates come from RDAP, which needs no key. Jobs can be paused, resumed or
                 cancelled; they are kept for 7 days.
               </li>
               <li>
