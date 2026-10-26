@@ -9,7 +9,6 @@ import {
   checkGoogleSafeBrowsing,
   checkOpenPhish,
   hasSuspiciousTLD,
-  checkTyposquatting,
   type AbuseIPDBResult,
   type DnsResult,
   type GoogleSafeBrowsingResult,
@@ -33,6 +32,11 @@ import { buildResult } from './scoring';
 import { pivotsFor, withFacts } from './facts';
 import { lookupDomain, type DomainRegistration } from '@/lib/rdap';
 import { domainAgeFindings, registrationDetail, registrationUnavailable } from './domain-age';
+import { detectLookalike, type LookalikeReport } from '@/lib/lookalike/detect';
+import type { TrancoListMeta } from '@/lib/lookalike/tranco-list';
+import { SourceUnavailable } from '@/lib/source-error';
+import { brandIndex } from '../lookalike';
+import { lookalikeDetail, lookalikeFindings } from './lookalike';
 import { abuseIpdbDetail, abuseIpdbIndicator, virusTotalDetail, virusTotalIndicator } from './shared';
 
 /** The first public A record, if any */
@@ -243,9 +247,26 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
     },
   });
 
+  runner.add<{ report: LookalikeReport; list: TrancoListMeta; ageDays: number }>({
+    id: 'lookalike',
+    label: 'Look-alike check',
+    source: 'Look-alike rules',
+    sources: 0,
+    run: async () => {
+      // No list, or one more than 7 days old: skipped, never guessed
+      const state = brandIndex();
+      if (!state.ok) throw new SourceUnavailable(state.reason);
+      return { report: detectLookalike(domain, state.index), list: state.list, ageDays: state.ageDays };
+    },
+    build: ({ report, list, ageDays }, out) => {
+      out.indicators.push(...lookalikeFindings(report, list));
+      out.details.lookalike = lookalikeDetail(report, list, ageDays);
+    },
+  });
+
   runner.add<Indicator[]>({
     id: 'rules',
-    label: 'Look-alike and TLD rules',
+    label: 'TLD rules',
     source: 'Rules',
     sources: 0,
     run: async () => {
@@ -260,17 +281,6 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
           source: 'TLD rules',
         });
       }
-      const typo = checkTyposquatting(domain);
-      if (typo.isTyposquat) {
-        found.push({
-          id: 'typosquatting',
-          name: 'Look-alike domain',
-          status: 'fail',
-          description: `Looks like an imitation of "${typo.targetBrand}"${typo.similarity ? ` (${Math.round(typo.similarity * 100)}% similar)` : ''}.`,
-          severity: 'critical',
-          source: 'Look-alike rules',
-        });
-      }
       return found;
     },
     build: (found, out) => out.indicators.push(...found),
@@ -282,7 +292,12 @@ export async function analyzeDomain(domain: string, ctx: AnalysisContext): Promi
   const abuse = runner.value<AbuseIPDBResult>('abuseipdb');
   const vt = runner.value<VirusTotalResult>('virustotal');
 
-  const result = buildResult('domain', domain, indicators, details, ctx);
+  // High and Critical need an independent source to agree, not just pattern rules.
+  // Hosting-IP reports only count when the IP isn't a CDN's, shared with every other site on it.
+  const independent = (i: Indicator) =>
+    ['virustotal', 'safe-browsing', 'openphish', 'blocklist-coverage'].includes(i.id) ||
+    (!cdn && ['abuse-reports', 'ip-blacklists'].includes(i.id));
+  const result = buildResult('domain', domain, indicators, details, ctx, { independent });
   return withFacts(
     { ...result, ...(coverage ? { blocklist: coverage } : {}), pivots: pivotsFor('domain', domain, abuse?.ipAddress) },
     {

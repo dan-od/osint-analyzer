@@ -5,6 +5,7 @@
 import { countLookup, findUserById } from '../auth/users';
 import { analyzeTarget, createAnalysisContext } from '../analysis';
 import { preloadFeeds } from '../blocklists/feeds';
+import { preloadBrandIndex } from '../lookalike';
 import { getCachedResult, pruneCache, putCachedResult } from './cache';
 import { claimNextItem, completeItem, failItem, getJobRow, jobsToResume, requeueItem, setJobStatus } from './jobs';
 
@@ -40,6 +41,7 @@ async function runJob(jobId: string): Promise<void> {
   setJobStatus(jobId, 'running');
   pruneCache();
   await preloadFeeds();
+  preloadBrandIndex();
 
   const stopped = () => {
     const status = getJobRow(jobId)?.status;

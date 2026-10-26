@@ -1,5 +1,7 @@
 import type { AnalysisType, AnalysisResult, Indicator, RiskLevel, AnalysisDetail } from '@/types';
-import { FAIL_MULTIPLIER, SCORE_CAP, SEVERITY_POINTS, riskLevelFor } from '@/lib/scoring-rules';
+import { FAIL_MULTIPLIER, SCORE_CAP, PATTERN_ONLY_NOTE, SEVERITY_POINTS, UNCORROBORATED_CAP, riskLevelFor } from '@/lib/scoring-rules';
+
+export { PATTERN_ONLY_NOTE };
 import type { AnalysisContext } from './context';
 import { sortFindings } from './facts';
 
@@ -14,8 +16,29 @@ function listNames(indicators: Indicator[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
+export interface ScoreOptions {
+  /**
+   * Findings from an independent source (blocklist, abuse reports, VirusTotal,
+   * phishing feed). When given, a result whose Fails and Warns all come from
+   * elsewhere (pattern rules) is capped at Medium.
+   */
+  independent?: (indicator: Indicator) => boolean;
+}
+
+const flagged = (i: Indicator) => i.status === 'fail' || i.status === 'warning';
+
+/** The score, capped at Medium when only pattern rules flagged anything and options.independent is set */
+export function scoreFindings(indicators: Indicator[], options: ScoreOptions = {}): { score: number; patternOnly: boolean; capped: boolean } {
+  const raw = calculateRiskScore(indicators);
+  const hits = indicators.filter(flagged);
+  const patternOnly = !!options.independent && hits.length > 0 && !hits.some(options.independent);
+  const score = patternOnly ? Math.min(raw, UNCORROBORATED_CAP) : raw;
+  return { score, patternOnly, capped: score < raw };
+}
+
 /** One or two sentences, in plain words, for the verdict band. */
-function summarize(level: RiskLevel, indicators: Indicator[], answered: number): string {
+function summarize(level: RiskLevel, indicators: Indicator[], answered: number, patternOnly = false): string {
+  const note = patternOnly && level !== 'low' ? ` ${PATTERN_ONLY_NOTE}` : '';
   const sorted = sortFindings(indicators);
   const fails = sorted.filter((i) => i.status === 'fail');
   const warns = sorted.filter((i) => i.status === 'warning');
@@ -28,7 +51,7 @@ function summarize(level: RiskLevel, indicators: Indicator[], answered: number):
   }
   if (level === 'medium') {
     const flagged = [...fails, ...warns];
-    return `Some warning signs: ${listNames(flagged)}. Nothing conclusive, but be careful.`;
+    return `Some warning signs: ${listNames(flagged)}. Nothing conclusive, but be careful.${note}`;
   }
   if (fails.length + warns.length > 0) {
     return `Only minor notes (${listNames([...fails, ...warns])}). ${answered} source${answered === 1 ? '' : 's'} answered and none reported it as malicious.`;
@@ -41,7 +64,8 @@ export function buildResult(
   query: string,
   indicators: Indicator[],
   details: Record<string, AnalysisDetail>,
-  ctx: AnalysisContext
+  ctx: AnalysisContext,
+  options: ScoreOptions = {}
 ): AnalysisResult {
   // Keyed sources that were skipped without a row of their own still show up
   const skippedSources = ctx.keys.skipped();
@@ -57,7 +81,7 @@ export function buildResult(
     });
   }
 
-  const riskScore = calculateRiskScore(indicators);
+  const { score: riskScore, patternOnly } = scoreFindings(indicators, options);
   const riskLevel = riskLevelFor(riskScore);
 
   // Confidence: the share of findings that came from a source that actually answered
@@ -74,7 +98,7 @@ export function buildResult(
     riskScore,
     riskLevel,
     confidence,
-    summary: summarize(riskLevel, indicators, answered),
+    summary: summarize(riskLevel, indicators, answered, patternOnly),
     indicators: sortFindings(indicators),
     details,
     recommendations: generateRecommendations(type, riskLevel, indicators),
@@ -132,7 +156,7 @@ function generateRecommendations(type: AnalysisType, riskLevel: RiskLevel, indic
 
   for (const indicator of indicators) {
     if (indicator.status !== 'fail') continue;
-    if (indicator.id === 'typosquatting') recommendations.push('It imitates a known brand. Do not trust it.');
+    if (indicator.id === 'lookalike') recommendations.push('It imitates a known brand. Do not trust it.');
     if (indicator.id === 'virustotal') recommendations.push('Several security vendors flag it as malicious.');
   }
 

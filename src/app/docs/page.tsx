@@ -6,7 +6,10 @@ import { CornerTicks, MarkBleed } from '@/components/decor';
 import { API_BLOCKLIST_TRUST, DOMAIN_DNSBL_META, FEED_META, IP_DNSBL_META } from '@/lib/blocklist-meta';
 import { IP_DNSBL_COUNT, KEYLESS_SOURCE_COUNT, SOURCE_COUNT, SOURCES, sourceCountFor } from '@/lib/source-catalog';
 import { SERVICES } from '@/lib/services';
-import { COVERAGE_THRESHOLDS, FAIL_MULTIPLIER, RISK_BANDS, SEVERITY_POINTS, TRUST_WEIGHT } from '@/lib/scoring-rules';
+import { COVERAGE_THRESHOLDS, FAIL_MULTIPLIER, RISK_BANDS, SEVERITY_POINTS, TRUST_WEIGHT, UNCORROBORATED_CAP, PATTERN_ONLY_NOTE } from '@/lib/scoring-rules';
+import { LIMITS as LOOKALIKE } from '@/lib/lookalike/detect';
+import { CONFUSABLES_VERSION } from '@/lib/lookalike/skeleton';
+import { BUNDLED_TRANCO_LIST_ID, TRANCO_MAX_AGE_DAYS, TRANCO_PROVIDERS } from '@/lib/lookalike/tranco-list';
 import {
   ANONYMOUS_CHECKS_PER_HOUR,
   BULK_MAX_TARGETS,
@@ -43,6 +46,7 @@ const NAV: DocsNavItem[] = [
   { id: 't-crypto', label: 'Crypto wallet', sub: true },
   { id: 'reading', label: 'Reading a result' },
   { id: 'scoring', label: 'How the score works' },
+  { id: 'lookalike', label: 'Look-alike domains' },
   { id: 'bulk', label: 'Bulk checks' },
   { id: 'accounts', label: 'Accounts and sign-in' },
   { id: 'keys', label: 'API keys' },
@@ -66,7 +70,7 @@ const INPUT_TYPES: { id: string; type: AnalysisType; title: string; example: str
     example: 'example-login.example',
     text: 'A bare domain or a full link. Links are checked by their host name.',
     looks: ['Registration date and age', 'DNS records', 'Phishing feeds', 'Malware feeds', 'Safe Browsing', 'Domain blocklists', 'Look-alike of a known brand', 'Suspicious TLD', 'Behind a CDN?'],
-    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, RDAP/WHOIS registration data, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
+    sources: `VirusTotal, Google Safe Browsing, URLhaus, ThreatFox, PhishTank, OpenPhish, ${DOMAIN_DNSBL_META.map((m) => m.name).join(', ')}, AlienVault OTX, RDAP/WHOIS registration data, the Tranco popularity ranking, plus AbuseIPDB and the ${IP_DNSBL_COUNT} IP blocklists on the address it resolves to`,
   },
   {
     id: 't-email',
@@ -350,6 +354,72 @@ export default function DocsPage() {
               <strong className="text-ink">Confidence</strong> is separate from the score: it is the share of findings that came
               from a source that actually answered. It drops when sources are skipped, so a 90 with 40% confidence means
               &quot;probably bad, but most checks didn&apos;t run&quot;.
+            </p>
+            <p className={body}>
+              <strong className="text-ink">Pattern rules alone stop at Medium.</strong> For a domain, look-alike, suspicious-TLD and
+              registration findings are patterns, not reports. When every Fail and Warn comes from them, the score is capped at{' '}
+              {UNCORROBORATED_CAP} and the summary says &quot;{PATTERN_ONLY_NOTE}&quot; High and Critical need at least one
+              independent source to agree: a blocklist, abuse reports, VirusTotal or a phishing feed. Abuse reports and blocklists
+              on the hosting IP don&apos;t count when the IP belongs to a CDN.
+            </p>
+          </Section>
+
+          <Section id="lookalike">
+            <h2 className={h2}>Look-alike domains</h2>
+            <p className={body}>
+              Domains are compared with the {LOOKALIKE.brands.toLocaleString('en-US')} most popular sites on a public ranking, not
+              with a list of brands kept by hand. A domain in the top {LOOKALIKE.known.toLocaleString('en-US')} is taken to be the
+              genuine article and gets a Pass, so google.com is never an imitation of Google.
+            </p>
+            <div className="oa-tablewrap">
+              <table aria-label="Look-alike patterns" className="oa-table oa-stack min-w-[520px]">
+                <thead>
+                  <tr>
+                    <th scope="col">Pattern</th>
+                    <th scope="col">Example</th>
+                    <th scope="col" className="w-[150px]">Finding</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['A popular domain spelled out in front of the real one', 'google.com.verify-account.ru', 'Fail, critical'],
+                    ['Characters that render alike: digits, letters from other alphabets, rn for m', 'g00gle.com, xn--pple-43d.com', 'Fail, critical'],
+                    ['A brand with a login word (login, verify, account, support, billing…)', 'microsoft-support.co', 'Fail, critical'],
+                    [`One letter off a top-${LOOKALIKE.editDistance.toLocaleString('en-US')} brand`, 'microsofft.com', 'Warn, high'],
+                    ['A brand name on another suffix', 'paypal.zip', 'Warn, medium (low on a country-code TLD)'],
+                    ['A brand with other words', 'amazon-deals-today.com', 'Warn, low'],
+                    ['A label that mixes scripts', 'xn--pple-43d.com', 'Warn, medium'],
+                  ].map(([pattern, example, finding]) => (
+                    <tr key={pattern}>
+                      <td className="text-ink-body">{pattern}</td>
+                      <td className={`${mono} text-ink-body`}>{example}</td>
+                      <td className="text-ink-body">{finding}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className={body}>
+              Punycode (xn--) names are decoded first, and the finding shows what the name renders as and which characters come
+              from another alphabet. Sites on hosting platforms (vercel.app, github.io, pages.dev and the rest of the Public Suffix
+              List&apos;s private section) are judged by their own name, not the platform&apos;s popularity. Brands named after an
+              everyday word (apple, target) are only protected near the top of the ranking.
+            </p>
+            <p className={body}>
+              The ranking is a custom Tranco list built from {TRANCO_PROVIDERS.map((p) => (p === 'crux' ? 'CrUX' : p.charAt(0).toUpperCase() + p.slice(1))).join(', ')},
+              leaving out Cloudflare Radar, whose data is for non-commercial use only. Every result names the list it used
+              {BUNDLED_TRANCO_LIST_ID ? (
+                <>
+                  ; the one shipped with this version is{' '}
+                  <a href={`https://tranco-list.eu/list/${BUNDLED_TRANCO_LIST_ID}`} className={mono}>{BUNDLED_TRANCO_LIST_ID}</a>
+                </>
+              ) : null}
+              . If there is no list, or the newest one&apos;s data is more than {TRANCO_MAX_AGE_DAYS} days old, the check is
+              Skipped with the reason. It never falls back to guessing.
+            </p>
+            <p className="m-0 text-[13px] text-muted">
+              Data: Tranco (Le Pochat et al., NDSS 2019), Unicode confusables (UTS #39, version {CONFUSABLES_VERSION}), Chromium&apos;s
+              list of common English words, and the Public Suffix List.
             </p>
           </Section>
 

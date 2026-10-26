@@ -3,7 +3,8 @@
 Every push to `main` (or **Actions → Deploy OSINT Analyzer → Run workflow**) runs
 `.github/workflows/deploy.yml`:
 
-1. `npm ci` and `npm run build` on the runner. A commit that doesn't build stops here.
+1. `npm ci`, `npm test` and `npm run build` on the runner. A commit whose tests fail, or that
+   doesn't build, stops here.
 2. The runner joins the tailnet (Tailscale OAuth, `tag:ci`).
 3. `rsync --delete` of the repo to `/opt/docker-homelab/sites/osint/`
    (without `node_modules`, `.next`, `.git`, `.env*`, `data`, `design`).
@@ -71,6 +72,11 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GITHUB_ID=
 GITHUB_SECRET=
+
+# Look-alike detection: lets the server generate a fresh Tranco list every few days.
+# Without it, the bundled list is used until its data is 7 days old, then the check is skipped.
+TRANCO_API_EMAIL=
+TRANCO_API_KEY=
 
 # Optional server fallback keys for sources (VIRUSTOTAL_API_KEY, ABUSEIPDB_API_KEY, ...)
 ```

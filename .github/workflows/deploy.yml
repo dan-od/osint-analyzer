@@ -30,11 +30,15 @@ jobs:
           node-version: 22
           cache: npm
 
-      # A commit that doesn't install or build never reaches the server
-      - name: Install and build
-        run: |
-          npm ci
-          npm run build
+      # A commit that doesn't install, pass its tests or build never reaches the server
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
 
       - name: Join the tailnet
         uses: tailscale/github-action@v3

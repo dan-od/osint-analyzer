@@ -16,6 +16,15 @@ export const RISK_BANDS: { level: RiskLevel; min: number; max: number }[] = [
   { level: 'critical', min: 76, max: 100 },
 ];
 
+/**
+ * Highest score when every Fail or Warn comes from pattern rules (look-alike,
+ * suspicious TLD, young domain) and no independent source (blocklist, abuse
+ * reports, VirusTotal, phishing feed) agrees: the top of Medium.
+ */
+export const UNCORROBORATED_CAP = RISK_BANDS[1].max;
+/** Added to the summary when that happens */
+export const PATTERN_ONLY_NOTE = 'Flagged by pattern rules only; no source has reported it.';
+
 export function riskLevelFor(score: number): RiskLevel {
   return RISK_BANDS.find((b) => score <= b.max)?.level ?? 'critical';
 }
